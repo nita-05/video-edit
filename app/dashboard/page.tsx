@@ -207,11 +207,12 @@ function DashboardContent() {
                 className="w-8 h-8 rounded-full"
               />
               <span className="text-gray-300">{session?.user?.name || 'User'}</span>
-              <LogOut 
-                className="w-4 h-4 text-gray-400 cursor-pointer hover:text-white transition-colors" 
-                onClick={handleLogout}
-                title="Logout"
-              />
+              <div title="Logout">
+                <LogOut 
+                  className="w-4 h-4 text-gray-400 cursor-pointer hover:text-white transition-colors" 
+                  onClick={handleLogout}
+                />
+              </div>
             </div>
           </div>
         </div>
