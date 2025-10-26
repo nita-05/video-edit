@@ -2,8 +2,8 @@
 set -e
 
 # Install system dependencies
-apt-get update
-apt-get install -y ffmpeg
+sudo apt-get update
+sudo apt-get install -y ffmpeg
 
 # Install Python dependencies
 cd backend
