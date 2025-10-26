@@ -1447,7 +1447,7 @@ function RealAIDashboard() {
                           onDragOver={(e) => e.preventDefault()}
                           onDrop={(e) => {
                             e.preventDefault();
-                            const clipId = e.dataTransfer.getData('clipId');
+                            const clipId = (e as React.DragEvent).dataTransfer.getData('clipId');
                             if (clipId) {
                               setVideoTracks(prev => 
                                 prev.map(clip => 
@@ -1467,7 +1467,7 @@ function RealAIDashboard() {
                                 key={clip.id}
                                 draggable
                                 onDragStart={(e) => {
-                                  e.dataTransfer.setData('clipId', clip.id);
+                                  (e as React.DragEvent).dataTransfer.setData('clipId', clip.id);
                                 }}
                                 className={`absolute h-8 rounded cursor-move flex items-center justify-center text-xs text-white font-medium ${
                                   selectedClipsForMerge.includes(clip.id)
