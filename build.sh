@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 set -e
 
-# Install system dependencies
-apt-get update
-apt-get install -y ffmpeg
-
-# Install Python dependencies
+# Install Python dependencies (includes imageio-ffmpeg which provides FFmpeg)
 cd backend
 pip install -r requirements.txt
