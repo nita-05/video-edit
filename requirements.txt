@@ -4,9 +4,12 @@ openai
 requests
 cloudinary
 moviepy
+imageio
+imageio-ffmpeg
 pillow
 python-dotenv
 google-api-python-client
 google-auth
 google-auth-oauthlib
 google-auth-httplib2
+opencv-python
