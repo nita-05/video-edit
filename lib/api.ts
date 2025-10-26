@@ -9,6 +9,9 @@ export interface FileInfo {
   file_type: string;
   file_size: number;
   upload_time: string;
+  type?: string;
+  duration?: string;
+  resolution?: string;
 }
 
 export interface Project {
