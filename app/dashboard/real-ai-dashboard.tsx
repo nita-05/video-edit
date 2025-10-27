@@ -868,24 +868,19 @@ function RealAIDashboard() {
       </header>
 
       {/* Main Content */}
-      <div className="flex flex-col lg:flex-row h-screen bg-gray-900">
+      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden bg-gray-900" style={{ height: 'calc(100vh - 80px)' }}>
         {/* Left Sidebar - Navigation */}
-        <div className="w-full lg:w-64 bg-gray-900 border-b lg:border-b-0 lg:border-r border-gray-700 p-4 overflow-y-auto">
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">VEDIT</h1>
-            {session?.user && (
-              <button onClick={() => signOut()} className="text-gray-400 hover:text-white text-sm">
-                Sign Out
-              </button>
-            )}
+        <div className="w-full lg:w-64 bg-gray-900 border-b lg:border-b-0 lg:border-r border-gray-700 p-4 overflow-y-auto lg:overflow-y-auto flex-shrink-0">
+          <div className="hidden lg:block mb-6">
+            <h2 className="text-xl font-bold text-white mb-6">Navigation</h2>
           </div>
           {/* Navigation tabs - responsive */}
-          <nav className="space-y-2 overflow-x-auto lg:overflow-x-visible flex lg:flex-col gap-2 lg:gap-0">
+          <nav className="flex lg:flex-col gap-2">
             {['editor', 'voice', 'effects', 'social'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab as any)}
-                className={`px-4 py-2 rounded-lg whitespace-nowrap lg:w-full text-sm font-medium transition-colors ${
+                className={`px-4 py-2 rounded-lg whitespace-nowrap lg:w-full text-sm font-medium transition-colors flex-1 lg:flex-none ${
                   activeTab === tab
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -897,136 +892,138 @@ function RealAIDashboard() {
           </nav>
         </div>
 
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-          {/* Center Panel - Video Editor */}
-          <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-            {/* Video Preview */}
-            <div className="flex-1 bg-black p-4 overflow-auto min-h-0">
-              <div className="w-full h-full flex items-center justify-center">
-                {selectedClipsForMerge.length > 0 ? (
-                  <video
-                    src={processedVideoUrl || videoTracks[0].url}
-                    controls
-                    className="max-w-full max-h-full rounded-lg"
-                  />
-                ) : (
-                  <div className="text-center text-gray-400">
-                    <p className="text-lg mb-2">Select a clip to preview</p>
-                    <p className="text-sm">Upload files or select from timeline</p>
-                  </div>
-                )}
+        {/* Main Content Area - Center */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Video Preview */}
+          <div className="flex-1 bg-black overflow-auto min-h-0 flex items-center justify-center p-4">
+            {selectedClipsForMerge.length > 0 && videoTracks.length > 0 ? (
+              <video
+                src={processedVideoUrl || videoTracks[0].url}
+                controls
+                className="max-w-full max-h-full rounded-lg"
+              />
+            ) : (
+              <div className="text-center text-gray-400">
+                <p className="text-lg mb-2">Select a clip to preview</p>
+                <p className="text-sm">Upload files from the sidebar</p>
               </div>
-            </div>
-
-            {/* Timeline */}
-            <div className="bg-gray-800 border-t border-gray-700 p-4 max-h-1/3 overflow-y-auto">
-              <h3 className="text-white font-medium mb-3">Multi-Track Timeline</h3>
-              <div className="space-y-2">
-                {[1, 2, 3].map((track) => (
-                  <div key={track} className="bg-gray-700 rounded p-3">
-                    <p className="text-gray-300 text-sm mb-2">Track {track}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {videoTracks
-                        .filter((c) => c.track === track)
-                        .map((clip) => (
-                          <button
-                            key={clip.id}
-                            onClick={() => selectClip(clip)}
-                            className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
-                              selectedClipsForMerge.includes(clip.id)
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
-                            }`}
-                          >
-                            {clip.name}
-                          </button>
-                        ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
           </div>
 
-          {/* Right Sidebar - AI Features (Hidden on mobile, shown on lg) */}
-          <motion.div 
-            className="hidden lg:flex lg:w-80 bg-gray-800 border-l border-gray-700 p-4 overflow-y-auto flex-col"
-            initial={{ x: 50, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white font-medium text-lg">Real AI Features</h3>
-              <div className="flex items-center space-x-2">
-                <Sparkles className="w-5 h-5 text-yellow-400" />
-                <span className="text-xs bg-green-600 text-white px-2 py-1 rounded">{enabledFeaturesCount}</span>
-              </div>
-            </div>
-            
-            {/* File Upload */}
-            <div className="bg-gray-700 rounded-lg p-4 mb-4">
-              <h4 className="text-white font-medium mb-3">Upload Media</h4>
-              <label className="cursor-pointer">
-                <div className="border-2 border-dashed border-gray-500 rounded-lg p-4 text-center hover:border-gray-400 transition-colors">
-                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-300 text-sm">Click to upload</p>
-                  <p className="text-gray-500 text-xs">Videos</p>
-                </div>
-                <input
-                  type="file"
-                  multiple
-                  accept="video/*,audio/*,image/*"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-              </label>
-            </div>
-            
-            {/* AI Features by Category */}
-            <div className="space-y-4">
-              {['video', 'audio', 'text', 'effects', 'advanced'].map((category) => (
-                <div key={category} className="bg-gray-700 rounded-lg p-4">
-                  <h4 className="text-white font-medium mb-3 capitalize">{category} Features</h4>
-                  <div className="space-y-2">
-                    {aiFeatures
-                      .filter(f => f.category === category)
-                      .map((feature) => (
-                        <label key={feature.id} className="flex items-center space-x-3 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={feature.enabled}
-                            onChange={() => toggleAIFeature(feature.id)}
-                            className="w-4 h-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500"
-                          />
-                          <span className={`${feature.color} text-sm`}>{feature.icon}</span>
-                          <div className="flex-1">
-                            <div className="text-gray-300 text-sm font-medium">{feature.name}</div>
-                            <div className="text-gray-500 text-xs">{feature.description}</div>
-                          </div>
-                        </label>
+          {/* Timeline - Fixed height */}
+          <div className="bg-gray-800 border-t border-gray-700 p-4 h-40 lg:h-32 overflow-y-auto flex-shrink-0">
+            <h3 className="text-white font-medium mb-3 text-sm">Multi-Track Timeline</h3>
+            <div className="space-y-2">
+              {[1, 2, 3].map((track) => (
+                <div key={track} className="bg-gray-700 rounded p-3">
+                  <p className="text-gray-300 text-sm mb-2">Track {track}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {videoTracks
+                      .filter((c) => c.track === track)
+                      .map((clip) => (
+                        <button
+                          key={clip.id}
+                          onClick={() => selectClip(clip)}
+                          className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                            selectedClipsForMerge.includes(clip.id)
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                          }`}
+                        >
+                          {clip.name}
+                        </button>
                       ))}
-                    {/* Burn-in toggle (mapped backend key: burnInSubtitles) */}
-                    {category === 'text' && (
-                      <label className="flex items-center space-x-3 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={burnInSubtitles}
-                          onChange={() => setBurnInSubtitles(!burnInSubtitles)}
-                          className="w-4 h-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-cyan-400 text-sm"><Captions className="w-5 h-5" /></span>
-                        <div className="flex-1">
-                          <div className="text-gray-300 text-sm font-medium">Burn-in Subtitles (requires ImageMagick)</div>
-                          <div className="text-gray-500 text-xs">Embeds captions into video frames</div>
-                        </div>
-                      </label>
-                    )}
                   </div>
                 </div>
               ))}
             </div>
-          </motion.div>
+          </div>
+
+          {/* Action Bar */}
+          <div className="bg-gradient-to-r from-green-500 to-blue-500 p-4 flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="text-white">
+                <div className="font-bold">{selectedClipsForMerge.length} clip{selectedClipsForMerge.length !== 1 ? 's' : ''} selected</div>
+                <div className="text-sm opacity-90">{enabledFeaturesCount} AI feature{enabledFeaturesCount !== 1 ? 's' : ''} enabled</div>
+              </div>
+              <button
+                onClick={handleAIMerge}
+                disabled={selectedClipsForMerge.length === 0}
+                className="bg-white text-blue-600 px-6 py-2 rounded-lg font-bold hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Start AI Processing
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Sidebar - AI Features (Hidden on mobile) */}
+        <div className="hidden lg:flex lg:w-80 bg-gray-800 border-l border-gray-700 p-4 overflow-y-auto flex-col flex-shrink-0">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-white font-medium text-lg">Real AI Features</h3>
+            <span className="text-xs bg-green-600 text-white px-2 py-1 rounded">{enabledFeaturesCount}</span>
+          </div>
+          
+          {/* File Upload */}
+          <div className="bg-gray-700 rounded-lg p-4 mb-4">
+            <h4 className="text-white font-medium mb-3 text-sm">Upload Media</h4>
+            <label className="cursor-pointer">
+              <div className="border-2 border-dashed border-gray-500 rounded-lg p-4 text-center hover:border-gray-400 transition-colors">
+                <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-gray-300 text-sm">Click to upload</p>
+                <p className="text-gray-500 text-xs">Videos</p>
+              </div>
+              <input
+                type="file"
+                multiple
+                accept="video/*,audio/*,image/*"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </label>
+          </div>
+          
+          {/* AI Features by Category */}
+          <div className="space-y-3 overflow-y-auto">
+            {['video', 'audio', 'text', 'effects', 'advanced'].map((category) => (
+              <div key={category} className="bg-gray-700 rounded-lg p-3">
+                <h4 className="text-white font-medium mb-2 text-sm capitalize">{category} Features</h4>
+                <div className="space-y-2">
+                  {aiFeatures
+                    .filter(f => f.category === category)
+                    .map((feature) => (
+                      <label key={feature.id} className="flex items-start space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={feature.enabled}
+                          onChange={() => toggleAIFeature(feature.id)}
+                          className="w-4 h-4 mt-0.5 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-gray-300 text-xs font-medium">{feature.name}</div>
+                          <div className="text-gray-500 text-xs">{feature.description}</div>
+                        </div>
+                      </label>
+                    ))}
+                  {/* Burn-in toggle */}
+                  {category === 'text' && (
+                    <label className="flex items-start space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={burnInSubtitles}
+                        onChange={() => setBurnInSubtitles(!burnInSubtitles)}
+                        className="w-4 h-4 mt-0.5 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-gray-300 text-xs font-medium">Burn-in Subtitles</div>
+                        <div className="text-gray-500 text-xs">Embeds captions into video</div>
+                      </div>
+                    </label>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
