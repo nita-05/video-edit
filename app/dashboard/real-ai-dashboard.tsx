@@ -71,6 +71,9 @@ import { useSession, signOut } from 'next-auth/react';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import { apiService, API_BASE_URL } from '@/lib/api';
 
+// API Configuration
+const API_URL = process.env.NEXT_PUBLIC_API_URL || API_BASE_URL;
+
 // Types
 interface VideoClip {
   id: string;
