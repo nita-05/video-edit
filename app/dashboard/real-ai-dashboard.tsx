@@ -58,7 +58,7 @@ import {
   Volume1,
   Volume2 as Volume2Icon,
   Mic2,
-  Headphones as Headphones2,
+  Headphones2,
   Calendar as CalendarIcon,
   Globe as GlobeIcon,
   Instagram as InstagramIcon,
@@ -69,10 +69,6 @@ import {
 } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import ProtectedRoute from '../../components/ProtectedRoute';
-import { apiService, API_BASE_URL } from '@/lib/api';
-
-// API Configuration
-const API_URL = process.env.NEXT_PUBLIC_API_URL || API_BASE_URL;
 
 // Types
 interface VideoClip {
@@ -200,10 +196,10 @@ function RealAIDashboard() {
   
   // VIA Profiles state
   const [voiceProfiles, setVoiceProfiles] = useState<VoiceProfile[]>([
-    { id: 'default', name: 'Default Voice', voiceType: 'Natural', isActive: true, previewUrl: `${API_URL}/voice/sample/default.mp3` },
-    { id: 'professional', name: 'Professional', voiceType: 'Business', isActive: false, previewUrl: `${API_URL}/voice/sample/professional.mp3` },
-    { id: 'casual', name: 'Casual', voiceType: 'Friendly', isActive: false, previewUrl: `${API_URL}/voice/sample/casual.mp3` },
-    { id: 'dramatic', name: 'Dramatic', voiceType: 'Theatrical', isActive: false, previewUrl: `${API_URL}/voice/sample/dramatic.mp3` }
+    { id: 'default', name: 'Default Voice', voiceType: 'Natural', isActive: true, previewUrl: 'http://localhost:5000/api/voice/sample/default.mp3' },
+    { id: 'professional', name: 'Professional', voiceType: 'Business', isActive: false, previewUrl: 'http://localhost:5000/api/voice/sample/professional.mp3' },
+    { id: 'casual', name: 'Casual', voiceType: 'Friendly', isActive: false, previewUrl: 'http://localhost:5000/api/voice/sample/casual.mp3' },
+    { id: 'dramatic', name: 'Dramatic', voiceType: 'Theatrical', isActive: false, previewUrl: 'http://localhost:5000/api/voice/sample/dramatic.mp3' }
   ]);
   const [isRecording, setIsRecording] = useState(false);
   const [isGeneratingVoice, setIsGeneratingVoice] = useState(false);
@@ -277,7 +273,7 @@ function RealAIDashboard() {
     if (jobId && isProcessing) {
       const interval = setInterval(async () => {
         try {
-          const response = await fetch(`${API_URL}/status/${jobId}`);
+          const response = await fetch(`http://localhost:5000/api/status/${jobId}`);
           const status = await response.json();
           
           setProcessingStep(status.status || 'Processing...');
@@ -286,7 +282,7 @@ function RealAIDashboard() {
           if (status.status === 'COMPLETED' && status.result) {
             setProcessedVideoUrl(status.result.processed_video_url);
             if (status.result.captions_url) {
-              setProcessedCaptionsUrl(`${API_URL}${status.result.captions_url}`);
+              setProcessedCaptionsUrl(`http://localhost:5000${status.result.captions_url}`);
             } else {
               setProcessedCaptionsUrl(null);
             }
@@ -398,7 +394,7 @@ function RealAIDashboard() {
     applyClientHeuristicsFromText(chatInput);
     // Real AI response using OpenAI
     try {
-      const response = await fetch(`${API_URL}/ai/chat`, {
+      const response = await fetch('http://localhost:5000/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: chatInput })
@@ -438,7 +434,7 @@ function RealAIDashboard() {
   const generateAISuggestions = async () => {
     setIsGeneratingSuggestions(true);
     try {
-      const response = await fetch(`${API_URL}/ai/suggestions`, {
+      const response = await fetch('http://localhost:5000/api/ai/suggestions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ videoCount: videoTracks.length })
@@ -478,7 +474,7 @@ function RealAIDashboard() {
         return;
       }
       
-      const res = await fetch(`${API_URL}/vport/connect/${endpoint}`);
+      const res = await fetch(`http://localhost:5000/api/vport/connect/${endpoint}`);
       const data = await res.json();
       
       if (data.auth_url) {
@@ -517,7 +513,7 @@ function RealAIDashboard() {
     // Fetch connection status for all platforms
     const fetchStatus = async () => {
       try {
-        const r = await fetch(`${API_URL}/vport/status/youtube`);
+        const r = await fetch('http://localhost:5000/api/vport/status/youtube');
         const j = await r.json();
         setYtStatus(j);
       } catch (e) {
@@ -529,7 +525,7 @@ function RealAIDashboard() {
 
   const schedulePost = async (platformId: string, content: any) => {
     try {
-      const response = await fetch(`${API_URL}/vport/schedule`, {
+      const response = await fetch('http://localhost:5000/api/vport/schedule', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ platform: platformId, content })
@@ -572,7 +568,7 @@ function RealAIDashboard() {
         'dramatic': 'onyx'
       };
       
-      const response = await fetch(`${API_URL}/voice/tts`, {
+      const response = await fetch('http://localhost:5000/api/voice/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -642,7 +638,7 @@ function RealAIDashboard() {
         const formData = new FormData();
         formData.append('file', file);
         console.log('Uploading file to server:', file.name);
-        const uploadResponse = await fetch(`${API_URL}/upload`, {
+        const uploadResponse = await fetch('http://localhost:5000/api/upload', {
           method: 'POST',
           body: formData
         });
@@ -691,7 +687,7 @@ function RealAIDashboard() {
         const blob = await res.blob();
         const formData = new FormData();
         formData.append('file', new File([blob], clip.name, { type: blob.type || 'video/mp4' }));
-        const up = await fetch(`${API_URL}/upload`, { method: 'POST', body: formData });
+        const up = await fetch('http://localhost:5000/api/upload', { method: 'POST', body: formData });
         if (!up.ok) {
           const t = await up.text();
           throw new Error(`upload failed: ${t}`);
@@ -770,7 +766,7 @@ function RealAIDashboard() {
 
       const performMerge = async (attempt: number): Promise<void> => {
         try {
-          const res = await fetch(`${API_URL}/ai/merge`, {
+          const res = await fetch('http://localhost:5000/api/ai/merge', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestData)
@@ -813,17 +809,8 @@ function RealAIDashboard() {
     );
   };
 
-  const handleLogout = async () => {
-    await signOut({ redirect: true });
-  };
-
-  // Select/deselect clip for merging
-  const selectClip = (clip: VideoClip) => {
-    if (selectedClipsForMerge.includes(clip.id)) {
-      setSelectedClipsForMerge(prev => prev.filter(id => id !== clip.id));
-    } else {
-      setSelectedClipsForMerge(prev => [...prev, clip.id]);
-    }
+  const handleLogout = () => {
+    signOut({ callbackUrl: '/' });
   };
 
   const enabledFeaturesCount = aiFeatures.filter(f => f.enabled).length;
@@ -865,117 +852,936 @@ function RealAIDashboard() {
                 }}
               />
               <span className="text-gray-300">{session?.user?.name || 'User'}</span>
-              <div title="Logout">
-                <LogOut 
-                  className="w-4 h-4 text-gray-400 cursor-pointer hover:text-white transition-colors" 
-                  onClick={handleLogout}
-                />
-              </div>
+              <LogOut 
+                className="w-4 h-4 text-gray-400 cursor-pointer hover:text-white transition-colors" 
+                onClick={handleLogout}
+                title="Logout"
+              />
             </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden bg-gray-900" style={{ height: 'calc(100vh - 80px)' }}>
-        {/* Left Sidebar - Navigation */}
-        <div className="w-full lg:w-64 bg-gray-900 border-b lg:border-b-0 lg:border-r border-gray-700 p-4 overflow-y-auto lg:overflow-y-auto flex-shrink-0">
-          <div className="hidden lg:block mb-6">
-            <h2 className="text-xl font-bold text-white mb-6">Navigation</h2>
+      <div className="flex h-[calc(100vh-80px)] w-full overflow-hidden">
+        {/* Left Sidebar - VIA Chatbot */}
+        <motion.div 
+          className="w-80 bg-gray-800 border-r border-gray-700 p-4 overflow-y-auto"
+          initial={{ x: -50, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-white font-medium text-lg flex items-center">
+              <Bot className="w-5 h-5 mr-2 text-blue-400" />
+              VIA Assistant
+            </h3>
+            <button
+              onClick={generateAISuggestions}
+              disabled={isGeneratingSuggestions}
+              className="text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50"
+            >
+              {isGeneratingSuggestions ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4" />
+              )}
+            </button>
           </div>
-          {/* Navigation tabs - responsive */}
-          <nav className="flex lg:flex-col gap-2">
-            {['editor', 'voice', 'effects', 'social'].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab as any)}
-                className={`px-4 py-2 rounded-lg whitespace-nowrap lg:w-full text-sm font-medium transition-colors flex-1 lg:flex-none ${
-                  activeTab === tab
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
+          
+          {/* Chat Messages */}
+          <div className="h-64 overflow-y-auto mb-4 space-y-3">
+            {chatMessages.map((message) => (
+              <motion.div
+                key={message.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
+                <div className={`max-w-xs px-3 py-2 rounded-lg ${
+                  message.type === 'user' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-gray-700 text-gray-200'
+                }`}>
+                  <p className="text-sm">{message.content}</p>
+                  <p className="text-xs opacity-70 mt-1">
+                    {message.timestamp.toLocaleTimeString()}
+                  </p>
+                </div>
+              </motion.div>
             ))}
-          </nav>
-        </div>
-
-        {/* Main Content Area - Center */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Video Preview */}
-          <div className="flex-1 bg-black overflow-auto min-h-0 flex items-center justify-center p-4">
-            {selectedClipsForMerge.length > 0 && videoTracks.length > 0 ? (
-              <video
-                src={processedVideoUrl || videoTracks[0].url}
-                controls
-                className="max-w-full max-h-full rounded-lg"
-              />
-            ) : (
-              <div className="text-center text-gray-400">
-                <p className="text-lg mb-2">Select a clip to preview</p>
-                <p className="text-sm">Upload files from the sidebar</p>
+            <div ref={chatEndRef} />
+          </div>
+          
+          {/* Chat Input */}
+          <div className="flex space-x-2 mb-4">
+            <input
+              type="text"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              placeholder="Ask VIA anything..."
+              className="flex-1 px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+            />
+            <button
+              onClick={handleSendMessage}
+              className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
+          
+          {/* Voice Commands */}
+          <div className="space-y-3">
+            <button
+              onClick={handleVoiceCommand}
+              className={`w-full flex items-center justify-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                isListening 
+                  ? 'bg-red-600 text-white' 
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              <Mic className="w-4 h-4" />
+              <span>{isListening ? 'Listening...' : 'Voice Commands'}</span>
+            </button>
+            
+            {/* AI Suggestions */}
+            {(aiSuggestions.length > 0 || isGeneratingSuggestions) && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-gray-300">AI Suggestions:</h4>
+                {isGeneratingSuggestions ? (
+                  <div className="flex items-center justify-center p-4 bg-gray-700 rounded">
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-400 mr-2" />
+                    <span className="text-gray-300 text-sm">Generating AI suggestions...</span>
+                  </div>
+                ) : (
+                  aiSuggestions.map((suggestion, index) => (
+                    <div
+                      key={index}
+                      className="p-2 bg-gray-700 rounded text-sm text-gray-300 cursor-pointer hover:bg-gray-600 transition-colors"
+                    >
+                      {suggestion}
+                    </div>
+                  ))
+                )}
               </div>
             )}
           </div>
+        </motion.div>
 
-          {/* Timeline - Fixed height */}
-          <div className="bg-gray-800 border-t border-gray-700 p-4 h-40 lg:h-32 overflow-y-auto flex-shrink-0">
-            <h3 className="text-white font-medium mb-3 text-sm">Multi-Track Timeline</h3>
-            <div className="space-y-2">
-              {[1, 2, 3].map((track) => (
-                <div key={track} className="bg-gray-700 rounded p-3">
-                  <p className="text-gray-300 text-sm mb-2">Track {track}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {videoTracks
-                      .filter((c) => c.track === track)
-                      .map((clip) => (
-                        <button
-                          key={clip.id}
-                          onClick={() => selectClip(clip)}
-                          className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                            selectedClipsForMerge.includes(clip.id)
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
-                          }`}
-                        >
-                          {clip.name}
-                        </button>
-                      ))}
-                  </div>
-                </div>
+        {/* Center Content - Tabbed Interface */}
+        <div className="flex-1 flex flex-col">
+          {/* Tab Navigation */}
+          <div className="bg-gray-800 border-b border-gray-700 px-6 py-3">
+            <div className="flex space-x-8">
+              {[
+                { id: 'via', name: 'VIA Chatbot', icon: <Bot className="w-5 h-5" />, color: 'text-blue-400' },
+                { id: 'editor', name: 'V-Editor', icon: <Video className="w-5 h-5" />, color: 'text-purple-400' },
+                { id: 'vport', name: 'V-Port', icon: <Share2 className="w-5 h-5" />, color: 'text-green-400' },
+                { id: 'profiles', name: 'VIA Profiles', icon: <Headphones className="w-5 h-5" />, color: 'text-orange-400' }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                    activeTab === tab.id
+                      ? 'bg-gray-700 text-white'
+                      : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                  }`}
+                >
+                  <span className={tab.color}>{tab.icon}</span>
+                  <span>{tab.name}</span>
+                </button>
               ))}
             </div>
           </div>
 
-          {/* Action Bar */}
-          <div className="bg-gradient-to-r from-green-500 to-blue-500 p-4 flex-shrink-0">
-            <div className="flex items-center justify-between">
-              <div className="text-white">
-                <div className="font-bold">{selectedClipsForMerge.length} clip{selectedClipsForMerge.length !== 1 ? 's' : ''} selected</div>
-                <div className="text-sm opacity-90">{enabledFeaturesCount} AI feature{enabledFeaturesCount !== 1 ? 's' : ''} enabled</div>
-              </div>
-              <button
-                onClick={handleAIMerge}
-                disabled={selectedClipsForMerge.length === 0}
-                className="bg-white text-blue-600 px-6 py-2 rounded-lg font-bold hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Start AI Processing
-              </button>
-            </div>
+          {/* Tab Content */}
+          <div className="flex-1 overflow-hidden">
+            <AnimatePresence mode="wait">
+              {activeTab === 'via' && (
+                <motion.div
+                  key="via"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="h-full p-6"
+                >
+                  <div className="text-center">
+                    <Bot className="w-16 h-16 text-blue-400 mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold text-white mb-2">VIA AI Assistant</h2>
+                    <p className="text-gray-400 mb-8">Your intelligent video editing companion with Real AI</p>
+                    
+                    {videoTracks.length > 0 && (
+                      <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 mb-8 max-w-2xl mx-auto">
+                        <div className="flex items-center justify-center space-x-2 mb-2">
+                          <Sparkles className="w-5 h-5 text-blue-400" />
+                          <span className="text-blue-400 font-medium">AI Suggestions Ready!</span>
+                        </div>
+                        <p className="text-gray-300 text-sm">
+                          I've analyzed your {videoTracks.length} video{videoTracks.length !== 1 ? 's' : ''} and generated personalized editing suggestions. 
+                          Check the sidebar for AI-powered recommendations!
+                        </p>
+                      </div>
+                    )}
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+                      <div className="bg-gray-800 p-6 rounded-lg">
+                        <Mic className="w-8 h-8 text-blue-400 mb-4" />
+                        <h3 className="text-lg font-semibold text-white mb-2">Voice Commands</h3>
+                        <p className="text-gray-400 text-sm">Speak naturally to edit your videos</p>
+                      </div>
+                      <div className="bg-gray-800 p-6 rounded-lg">
+                        <Sparkles className="w-8 h-8 text-purple-400 mb-4" />
+                        <h3 className="text-lg font-semibold text-white mb-2">Smart Suggestions</h3>
+                        <p className="text-gray-400 text-sm">AI analyzes and suggests improvements</p>
+                      </div>
+                      <div className="bg-gray-800 p-6 rounded-lg">
+                        <Zap className="w-8 h-8 text-yellow-400 mb-4" />
+                        <h3 className="text-lg font-semibold text-white mb-2">Auto Processing</h3>
+                        <p className="text-gray-400 text-sm">One-click apply AI recommendations</p>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {activeTab === 'editor' && (
+                <motion.div
+                  key="editor"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="h-full flex flex-col"
+                >
+                {/* Video Editor Interface */}
+                  <div className="flex-1 bg-black relative overflow-hidden">
+                    {videoTracks.length > 0 ? (
+                      <div className="h-full flex flex-col">
+                        {/* Video Preview Area - SCROLLABLE */}
+                        <div className="flex-1 bg-gray-900 p-4 pb-20 overflow-y-auto">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl mx-auto">
+                              {videoTracks.map((clip, index) => (
+                                <motion.div
+                                  key={clip.id}
+                                  className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700"
+                                  initial={{ opacity: 0, y: 20 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: index * 0.1 }}
+                                >
+                                  <div className="aspect-video bg-black relative">
+                                    {clip.type === 'video' ? (
+                                      <video
+                                        src={clip.displayUrl || clip.url}
+                                        controls
+                                        className="w-full h-full object-cover"
+                                        onLoadedMetadata={(e) => {
+                                          const video = e.target as HTMLVideoElement;
+                                          const duration = video.duration;
+                                          setVideoTracks(prev => 
+                                            prev.map(v => 
+                                              v.id === clip.id 
+                                                ? { ...v, duration: duration, endTime: duration }
+                                                : v
+                                            )
+                                          );
+                                        }}
+                                      />
+                                    ) : clip.type === 'audio' ? (
+                                      <div className="flex items-center justify-center h-full">
+                                        <div className="text-center">
+                                          <Music className="w-12 h-12 text-blue-400 mx-auto mb-2" />
+                                          <p className="text-white text-sm">{clip.name}</p>
+                                          <audio src={clip.displayUrl || clip.url} controls className="mt-2" />
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center justify-center h-full">
+                                        <div className="text-center">
+                                          <Image className="w-12 h-12 text-green-400 mx-auto mb-2" />
+                                          <p className="text-white text-sm">{clip.name}</p>
+                                          <img src={clip.displayUrl || clip.url} alt={clip.name} className="mt-2 max-h-32 object-cover rounded" />
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="p-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <h4 className="text-white text-sm font-medium truncate">{clip.name}</h4>
+                                      <div className="flex items-center space-x-2">
+                                        <input
+                                          type="checkbox"
+                                          checked={selectedClipsForMerge.includes(clip.id)}
+                                          onChange={(e) => {
+                                            if (e.target.checked) {
+                                              setSelectedClipsForMerge(prev => [...prev, clip.id]);
+                                            } else {
+                                              setSelectedClipsForMerge(prev => prev.filter(id => id !== clip.id));
+                                            }
+                                          }}
+                                          className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                                        />
+                                        <span className="text-xs text-gray-400">Select</span>
+                                      </div>
+                                    </div>
+                                    <div className="text-xs text-gray-400">
+                                      Duration: {clip.duration.toFixed(1)}s | Track: {clip.track + 1}
+                                    </div>
+                                    {/* Trim Controls (Sliders + Inputs) - HORIZONTAL LAYOUT */}
+                                    <div className="mt-3 bg-gray-900/50 p-3 rounded-lg border border-gray-700">
+                                      <div className="grid grid-cols-3 gap-3 items-end">
+                                        <div>
+                                          <label className="block text-xs font-medium text-gray-300 mb-1">Start (s)</label>
+                                          <input
+                                            type="number"
+                                            min={0}
+                                            step="0.1"
+                                            value={Number.isFinite(clip.startTime) ? clip.startTime : 0}
+                                            onChange={(e) => {
+                                              const v = Math.max(0, parseFloat(e.target.value || '0'));
+                                              setVideoTracks(prev => prev.map(c => c.id === clip.id ? { ...c, startTime: v } : c));
+                                            }}
+                                            className="w-full px-2 py-1.5 bg-gray-700 text-white rounded border border-gray-600 text-sm"
+                                          />
+                                          <input
+                                            type="range"
+                                            min={0}
+                                            max={Math.max(0.1, clip.duration || 0)}
+                                            step={0.1}
+                                            value={Number.isFinite(clip.startTime) ? Math.min(clip.startTime, clip.endTime ?? clip.duration) : 0}
+                                            onChange={(e) => {
+                                              const v = Math.max(0, parseFloat(e.target.value || '0'));
+                                              setVideoTracks(prev => prev.map(c => c.id === clip.id ? { ...c, startTime: Math.min(v, c.endTime || c.duration) } : c));
+                                            }}
+                                            className="w-full mt-1"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-xs font-medium text-gray-300 mb-1">End (s)</label>
+                                          <input
+                                            type="number"
+                                            min={0}
+                                            step="0.1"
+                                            value={Number.isFinite(clip.endTime) ? clip.endTime : clip.duration}
+                                            onChange={(e) => {
+                                              const v = Math.max(0, parseFloat(e.target.value || '0'));
+                                              setVideoTracks(prev => prev.map(c => c.id === clip.id ? { ...c, endTime: v } : c));
+                                            }}
+                                            className="w-full px-2 py-1.5 bg-gray-700 text-white rounded border border-gray-600 text-sm"
+                                          />
+                                          <input
+                                            type="range"
+                                            min={0}
+                                            max={Math.max(0.1, clip.duration || 0)}
+                                            step={0.1}
+                                            value={Number.isFinite(clip.endTime) ? clip.endTime : (clip.duration || 0)}
+                                            onChange={(e) => {
+                                              const v = Math.max(0, parseFloat(e.target.value || '0'));
+                                              setVideoTracks(prev => prev.map(c => c.id === clip.id ? { ...c, endTime: Math.max(v, c.startTime || 0) } : c));
+                                            }}
+                                            className="w-full mt-1"
+                                          />
+                                        </div>
+                                        <button
+                                          onClick={() => {
+                                            setVideoTracks(prev => prev.map(c => {
+                                              if (c.id !== clip.id) return c;
+                                              const start = Math.max(0, Math.min(c.startTime || 0, c.duration));
+                                              const end = Math.max(0, Math.min(c.endTime || c.duration, c.duration));
+                                              if (end <= start) {
+                                                return { ...c, startTime: 0, endTime: Math.min(5, c.duration) };
+                                              }
+                                              return { ...c, startTime: start, endTime: end };
+                                            }));
+                                          }}
+                                          className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg"
+                                        >
+                                          ✂️ Set Trim
+                                        </button>
+                                      </div>
+                                      
+                                      {/* Preview Trim Button - FULL WIDTH BELOW */}
+                                      <button
+                                        onClick={() => setPreviewClipId(prev => prev === clip.id ? null : clip.id)}
+                                        className={`w-full mt-3 px-4 py-3 rounded-lg text-base font-bold transition-all shadow-lg ${
+                                          previewClipId === clip.id 
+                                            ? 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white' 
+                                            : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white'
+                                        }`}
+                                      >
+                                        {previewClipId === clip.id ? '👁️ HIDE PREVIEW' : '▶️ PREVIEW TRIM'}
+                                      </button>
+                                    </div>
+                                    {previewClipId === clip.id && (
+                                      <div className="mt-3 border-2 border-purple-500 rounded-lg overflow-hidden bg-black shadow-lg">
+                                        <div className="bg-purple-900/30 px-3 py-1.5 border-b border-purple-500/50">
+                                          <div className="text-xs font-medium text-purple-300">
+                                            🎬 Trim Preview: {Math.max(0, clip.startTime || 0).toFixed(1)}s → {Math.max(clip.startTime || 0, clip.endTime || clip.duration || 0).toFixed(1)}s
+                                          </div>
+                                        </div>
+                                        <video
+                                          src={clip.displayUrl || clip.url}
+                                          muted
+                                          autoPlay
+                                          controls
+                                          className="w-full h-32 object-contain bg-black"
+                                          onLoadedMetadata={(e) => {
+                                            const v = e.currentTarget;
+                                            const start = Math.max(0, clip.startTime || 0);
+                                            v.currentTime = start;
+                                          }}
+                                          onTimeUpdate={(e) => {
+                                            const v = e.currentTarget as HTMLVideoElement;
+                                            const start = Math.max(0, clip.startTime || 0);
+                                            const end = Math.max(start + 0.1, clip.endTime || clip.duration || start + 0.1);
+                                            if (v.currentTime < start) v.currentTime = start;
+                                            if (v.currentTime >= end) v.currentTime = start;
+                                          }}
+                                        />
+                                        <div className="px-3 py-1.5 bg-purple-900/30 border-t border-purple-500/50">
+                                          <div className="text-xs text-purple-300">
+                                            ↻ Looping trimmed section • Duration: {(Math.max(clip.startTime || 0, clip.endTime || clip.duration || 0) - Math.max(0, clip.startTime || 0)).toFixed(1)}s
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {clip.effects && clip.effects.length > 0 && (
+                                      <div className="mt-2">
+                                        <div className="flex flex-wrap gap-1">
+                                          {clip.effects.map((effect, i) => (
+                                            <span key={i} className="px-2 py-1 bg-blue-600 text-white text-xs rounded">
+                                              {effect}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </motion.div>
+                              ))}
+                          </div>
+                        </div>
+                        
+                        {/* Effects Preset Picker */}
+                        <div className="bg-gray-800 border-t border-gray-700 p-4">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <label className="text-sm text-gray-300">Filter Preset:</label>
+                            <select
+                              value={filterPreset || ''}
+                              onChange={(e) => setFilterPreset(e.target.value || null)}
+                              className="bg-gray-700 text-white text-sm px-3 py-2 rounded border border-gray-600"
+                            >
+                              <option value="">None</option>
+                              <option value="vintage">Vintage (Sepia)</option>
+                              <option value="cinematic">Cinematic (Teal & Orange)</option>
+                              <option value="noir">Noir (B/W)</option>
+                              <option value="warm">Warm</option>
+                              <option value="cool">Cool</option>
+                            </select>
+                            <span className="text-xs text-gray-400">Applied in final render</span>
+                          </div>
+                        </div>
+
+                        {/* Processing Status */}
+                        {isProcessing && (
+                          <div className="bg-gray-800 border-t border-gray-700 p-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center space-x-2">
+                                <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
+                                <span className="text-white font-medium">{processingStep}</span>
+                              </div>
+                              <span className="text-gray-400 text-sm">{processingProgress}%</span>
+                            </div>
+                            <div className="w-full bg-gray-700 rounded-full h-2">
+                              <motion.div
+                                className="bg-blue-500 h-2 rounded-full"
+                                initial={{ width: 0 }}
+                                animate={{ width: `${processingProgress}%` }}
+                                transition={{ duration: 0.5 }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* AI Processing Button - STICKY AT BOTTOM */}
+                        {!isProcessing && videoTracks.length > 0 && !processedVideoUrl && (
+                          <div className="bg-gradient-to-r from-gray-900 to-gray-800 border-t-2 border-gray-700 p-4 sticky bottom-0 z-20">
+                            {selectedClipsForMerge.length === 0 ? (
+                              <div className="flex items-center justify-center gap-3 text-yellow-400">
+                                <AlertCircle className="w-5 h-5" />
+                                <span className="font-medium">Please select at least one video clip by checking the "Select" checkbox above</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-between gap-4">
+                                <div className="flex-1">
+                                  <div className="text-white font-medium mb-1">
+                                    {selectedClipsForMerge.length} clip{selectedClipsForMerge.length !== 1 ? 's' : ''} selected • {enabledFeaturesCount} AI feature{enabledFeaturesCount !== 1 ? 's' : ''} enabled
+                                  </div>
+                                  <div className="text-gray-400 text-sm">
+                                    Click the button to start processing with Real AI
+                                  </div>
+                                </div>
+                                <motion.button
+                                  onClick={handleAIMerge}
+                                  disabled={selectedClipsForMerge.length === 0}
+                                  className="bg-gradient-to-r from-green-500 to-blue-500 text-white px-8 py-3 rounded-lg font-bold hover:from-green-600 hover:to-blue-600 transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 whitespace-nowrap"
+                                  whileHover={selectedClipsForMerge.length > 0 ? { scale: 1.05 } : {}}
+                                  whileTap={selectedClipsForMerge.length > 0 ? { scale: 0.95 } : {}}
+                                >
+                                  <Zap className="w-5 h-5" />
+                                  Start AI Processing
+                                </motion.button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* Processed Video Result */}
+                        {processedVideoUrl && (
+                          <div className="bg-green-900/20 border-t border-green-500/30 p-4 sticky bottom-0 z-20">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="text-green-400 text-sm font-medium mb-1">✅ AI Processing Complete!</div>
+                                <div className="text-gray-300 text-sm">
+                                  Your video has been processed with Real AI and is ready for download.
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {/* Download Video */}
+                                <a 
+                                  href={processedVideoUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
+                                >
+                                  Download Video
+                                </a>
+                                
+                                {/* Export Anywhere Button */}
+                                <button
+                                  onClick={() => setActiveTab('vport')}
+                                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-4 py-2 rounded text-sm font-medium transition-all flex items-center gap-2 shadow-lg hover:shadow-xl"
+                                >
+                                  <Upload className="w-4 h-4" />
+                                  Export Anywhere
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <motion.div
+                          className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-8 border border-gray-600 relative overflow-hidden max-w-2xl w-full mx-4"
+                          animate={{
+                            boxShadow: isProcessing ? [
+                              "0 0 20px rgba(59, 130, 246, 0.3)",
+                              "0 0 40px rgba(59, 130, 246, 0.6)",
+                              "0 0 20px rgba(59, 130, 246, 0.3)"
+                            ] : "0 0 20px rgba(59, 130, 246, 0.1)"
+                          }}
+                          transition={{ duration: 2, repeat: isProcessing ? Infinity : 0 }}
+                        >
+                          <div className="text-center">
+                            <motion.div
+                              className="w-20 h-20 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-6"
+                              animate={{
+                                scale: isProcessing ? [1, 1.1, 1] : 1,
+                                boxShadow: isProcessing ? [
+                                  "0 0 20px rgba(59, 130, 246, 0.3)",
+                                  "0 0 30px rgba(59, 130, 246, 0.6)",
+                                  "0 0 20px rgba(59, 130, 246, 0.3)"
+                                ] : "0 0 20px rgba(59, 130, 246, 0.3)"
+                              }}
+                              transition={{
+                                duration: 2,
+                                repeat: isProcessing ? Infinity : 0,
+                              }}
+                            >
+                              {isProcessing ? (
+                                <Loader2 className="w-8 h-8 text-white animate-spin" />
+                              ) : (
+                                <Play className="w-8 h-8 text-white ml-1" />
+                              )}
+                            </motion.div>
+                            
+                            <div className="text-white text-xl font-medium mb-2">
+                              {isProcessing ? 'AI Processing Video...' : 'Ready to Edit'}
+                            </div>
+                            <div className="text-gray-400 text-sm mb-6">
+                              {isProcessing ? 'Real AI processing in progress...' : 'Upload your media to get started'}
+                            </div>
+                          </div>
+                        </motion.div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Multi-Track Timeline with Drag & Drop */}
+                  <div className="bg-gray-900 border-t border-gray-700 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-4">
+                        <h3 className="text-white font-medium">Multi-Track Timeline</h3>
+                        <div className="flex space-x-1">
+                          <div className="w-2 h-2 bg-blue-500 rounded" title="Video Track"></div>
+                          <div className="w-2 h-2 bg-green-500 rounded" title="Audio Track"></div>
+                          <div className="w-2 h-2 bg-red-500 rounded" title="Effects Track"></div>
+                        </div>
+                      </div>
+                      <div className="text-gray-400 text-sm">
+                        {videoTracks.length > 0 
+                          ? `${videoTracks.reduce((sum, clip) => sum + clip.duration, 0).toFixed(1)}s total`
+                          : '00:00:00:00'
+                        }
+                      </div>
+                    </div>
+                    
+                    {/* Interactive Timeline Tracks */}
+                    <div className="bg-gray-800 rounded min-h-[120px] relative overflow-x-auto">
+                      {[0, 1, 2].map((trackNum) => (
+                        <div 
+                          key={trackNum}
+                          className="h-10 border-b border-gray-700 relative flex items-center px-2"
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const clipId = e.dataTransfer.getData('clipId');
+                            if (clipId) {
+                              setVideoTracks(prev => 
+                                prev.map(clip => 
+                                  clip.id === clipId ? { ...clip, track: trackNum } : clip
+                                )
+                              );
+                            }
+                          }}
+                        >
+                          <span className="text-gray-500 text-xs mr-2">Track {trackNum + 1}</span>
+                          
+                          {/* Render clips on this track */}
+                          {videoTracks
+                            .filter(clip => clip.track === trackNum)
+                            .map((clip, idx) => (
+                              <motion.div
+                                key={clip.id}
+                                draggable
+                                onDragStart={(e) => {
+                                  e.dataTransfer.setData('clipId', clip.id);
+                                }}
+                                className={`absolute h-8 rounded cursor-move flex items-center justify-center text-xs text-white font-medium ${
+                                  selectedClipsForMerge.includes(clip.id)
+                                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 ring-2 ring-blue-400'
+                                    : 'bg-gradient-to-r from-gray-600 to-gray-700'
+                                } hover:brightness-110 transition-all`}
+                                style={{
+                                  left: `${80 + idx * 120}px`,
+                                  width: `${Math.max(80, clip.duration * 10)}px`
+                                }}
+                                onClick={() => {
+                                  if (selectedClipsForMerge.includes(clip.id)) {
+                                    setSelectedClipsForMerge(prev => prev.filter(id => id !== clip.id));
+                                  } else {
+                                    setSelectedClipsForMerge(prev => [...prev, clip.id]);
+                                  }
+                                }}
+                                initial={{ scale: 0.8, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ delay: idx * 0.1 }}
+                              >
+                                <span className="truncate px-2">{clip.name}</span>
+                              </motion.div>
+                            ))}
+                          
+                          {/* Drop zone indicator */}
+                          {videoTracks.filter(c => c.track === trackNum).length === 0 && (
+                            <span className="text-gray-600 text-xs italic">Drop clips here...</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Timeline Instructions */}
+                    {videoTracks.length > 0 && (
+                      <div className="mt-2 text-xs text-gray-500 flex items-center space-x-4">
+                        <span>💡 Drag clips to reorder or move between tracks</span>
+                        <span>•</span>
+                        <span>Click clips to select for merging</span>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
+              {activeTab === 'vport' && (
+                <motion.div
+                  key="vport"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="h-full p-6 overflow-y-auto"
+                >
+                  <div className="text-center mb-8">
+                    <Share2 className="w-16 h-16 text-green-400 mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold text-white mb-2">V-Port Publishing</h2>
+                    <p className="text-gray-400">Automate publishing & scheduling across all social platforms</p>
+                  </div>
+                  
+                  {/* Publishing Platforms */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                    {publishingPlatforms.map((platform) => (
+                      <div
+                        key={platform.id}
+                        className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors"
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center space-x-3">
+                            <span className={platform.color}>{platform.icon}</span>
+                            <span className="text-white font-medium">{platform.name}</span>
+                          </div>
+                          <button
+                            onClick={() => connectPlatform(platform.id)}
+                            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                              isPlatformConnected(platform.id)
+                                ? 'bg-green-600 text-white'
+                                : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                            }`}
+                          >
+                            {isPlatformConnected(platform.id) ? (platform.id === 'youtube' && ytStatus?.channelTitle ? `Connected` : 'Connected') : 'Connect'}
+                          </button>
+                        </div>
+                        <div className="text-sm text-gray-400">
+                          {isPlatformConnected(platform.id)
+                            ? 'Ready to publish'
+                            : 'Click to connect your account'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Publish Video Section */}
+                  {processedVideoUrl && (
+                    <div className="bg-gradient-to-br from-green-900/20 to-blue-900/20 rounded-lg border border-green-500/30 p-6 mb-6">
+                      <div className="flex items-center justify-between flex-wrap gap-4">
+                        <div>
+                          <h3 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                            <Rocket className="w-5 h-5 text-green-400" />
+                            Publish Your Video
+                          </h3>
+                          <p className="text-gray-300 text-sm">
+                            Ready to publish your processed video to connected platforms
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                                                     {publishingPlatforms.filter(p => isPlatformConnected(p.id)).map((platform) => (
+                             <button
+                               key={platform.id}
+                               onClick={async () => {
+                                 if (!processedVideoUrl) {
+                                   alert('No video to publish. Please process a video first.');
+                                   return;
+                                 }
+                                 
+                                 setIsPublishing(true);
+                                 try {
+                                   // Directly send the processed video URL to the backend publish endpoint
+                                   const response = await fetch(`http://localhost:5000/api/vport/publish/${platform.id}`, {
+                                     method: 'POST',
+                                     headers: { 'Content-Type': 'application/json' },
+                                     body: JSON.stringify({
+                                       videoUrl: processedVideoUrl,
+                                       title: 'VEDIT Processed Video',
+                                       description: 'Created with VEDIT AI Video Editor',
+                                       privacyStatus: 'unlisted'
+                                     })
+                                   });
+                                   
+                                   const data = await response.json();
+                                   
+                                   if (data.success) {
+                                     alert(`✅ Successfully published to ${platform.name}!`);
+                                   } else {
+                                     alert(`Failed to publish to ${platform.name}: ${data.error || 'Unknown error'}`);
+                                   }
+                                 } catch (error: any) {
+                                   console.error('Publish error:', error);
+                                   alert(`Error publishing to ${platform.name}: ${error.message}`);
+                                 } finally {
+                                   setIsPublishing(false);
+                                 }
+                               }}
+                               disabled={isPublishing}
+                               className={`flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white rounded-lg font-medium transition-all shadow-lg hover:shadow-xl ${
+                                 isPublishing ? 'opacity-50 cursor-not-allowed' : ''
+                               }`}
+                             >
+                               {isPublishing ? (
+                                 <>
+                                   <Loader2 className="w-4 h-4 animate-spin" />
+                                   Publishing...
+                                 </>
+                               ) : (
+                                 <>
+                                   <span className="w-4 h-4">{platform.icon}</span>
+                                   Publish to {platform.name}
+                                 </>
+                               )}
+                             </button>
+                           ))}
+                          {publishingPlatforms.filter(p => isPlatformConnected(p.id)).length === 0 && (
+                            <button
+                              disabled
+                              className="px-4 py-2 bg-gray-600 text-gray-400 rounded-lg font-medium cursor-not-allowed"
+                            >
+                              No platforms connected
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Scheduled Posts */}
+                  <div className="bg-gray-800 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-white mb-4">Scheduled Posts</h3>
+                    {scheduledPosts.length > 0 ? (
+                      <div className="space-y-3">
+                        {scheduledPosts.map((post) => (
+                          <div key={post.id} className="flex items-center justify-between p-3 bg-gray-700 rounded">
+                            <div>
+                              <div className="text-white font-medium">{post.platform}</div>
+                              <div className="text-gray-400 text-sm">
+                                Scheduled for {post.scheduledTime.toLocaleString()}
+                              </div>
+                            </div>
+                            <span className="px-2 py-1 bg-yellow-600 text-yellow-100 text-xs rounded">
+                              {post.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center text-gray-400 py-8">
+                        <CalendarIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p>No scheduled posts yet</p>
+                        <p className="text-sm">Connect platforms and schedule your content</p>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
+              {activeTab === 'profiles' && (
+                <motion.div
+                  key="profiles"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="h-full p-6 overflow-y-auto"
+                >
+                  <div className="text-center mb-8">
+                    <Headphones className="w-16 h-16 text-orange-400 mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold text-white mb-2">VIA Profiles</h2>
+                    <p className="text-gray-400">AI-generated voice clones for personalized voiceovers</p>
+                  </div>
+                  
+                  {/* Voice Profiles */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    {voiceProfiles.map((profile) => (
+                      <div
+                        key={profile.id}
+                        className={`bg-gray-800 p-6 rounded-lg border-2 transition-colors ${
+                          profile.isActive 
+                            ? 'border-orange-500 bg-orange-500/10' 
+                            : 'border-gray-700 hover:border-gray-600'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h3 className="text-lg font-semibold text-white">{profile.name}</h3>
+                            <p className="text-gray-400 text-sm">{profile.voiceType} Voice</p>
+                          </div>
+                          <button
+                            onClick={() => activateVoiceProfile(profile.id)}
+                            className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                              profile.isActive
+                                ? 'bg-orange-600 text-white'
+                                : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                            }`}
+                          >
+                            {profile.isActive ? 'Active' : 'Activate'}
+                          </button>
+                        </div>
+                        
+                        {profile.previewUrl && (
+                          <div className="mb-4">
+                            <audio controls className="w-full">
+                              <source src={profile.previewUrl} type="audio/mpeg" />
+                              Your browser does not support the audio element.
+                            </audio>
+                          </div>
+                        )}
+                        
+                        <button
+                          onClick={() => generateVoiceProfile(profile.id)}
+                          disabled={isGeneratingVoice}
+                          className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {isGeneratingVoice ? (
+                            <div className="flex items-center justify-center space-x-2">
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Generating...</span>
+                            </div>
+                          ) : (
+                            'Generate Voice Sample'
+                          )}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Voice Recording */}
+                  <div className="bg-gray-800 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-white mb-4">Record New Voice</h3>
+                    <div className="text-center">
+                      <button
+                        onClick={() => setIsRecording(!isRecording)}
+                        className={`w-20 h-20 rounded-full flex items-center justify-center text-2xl transition-colors ${
+                          isRecording
+                            ? 'bg-red-600 text-white animate-pulse'
+                            : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                        }`}
+                      >
+                        <Mic className="w-8 h-8" />
+                      </button>
+                      <p className="text-gray-400 mt-4">
+                        {isRecording ? 'Recording... Click to stop' : 'Click to start recording'}
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
-        {/* Right Sidebar - AI Features (Hidden on mobile) */}
-        <div className="hidden lg:flex lg:w-80 bg-gray-800 border-l border-gray-700 p-4 overflow-y-auto flex-col flex-shrink-0">
+        {/* Right Sidebar - AI Features */}
+        <motion.div 
+          className="w-80 bg-gray-800 border-l border-gray-700 p-4 overflow-y-auto max-h-[calc(100vh-80px)]"
+          initial={{ x: 50, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+        >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-white font-medium text-lg">Real AI Features</h3>
-            <span className="text-xs bg-green-600 text-white px-2 py-1 rounded">{enabledFeaturesCount}</span>
+            <div className="flex items-center space-x-2">
+              <Sparkles className="w-5 h-5 text-yellow-400" />
+              <span className="text-xs bg-green-600 text-white px-2 py-1 rounded">{enabledFeaturesCount}</span>
+            </div>
           </div>
           
           {/* File Upload */}
           <div className="bg-gray-700 rounded-lg p-4 mb-4">
-            <h4 className="text-white font-medium mb-3 text-sm">Upload Media</h4>
+            <h4 className="text-white font-medium mb-3">Upload Media</h4>
             <label className="cursor-pointer">
               <div className="border-2 border-dashed border-gray-500 rounded-lg p-4 text-center hover:border-gray-400 transition-colors">
                 <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
@@ -993,39 +1799,41 @@ function RealAIDashboard() {
           </div>
           
           {/* AI Features by Category */}
-          <div className="space-y-3 overflow-y-auto">
+          <div className="space-y-4">
             {['video', 'audio', 'text', 'effects', 'advanced'].map((category) => (
-              <div key={category} className="bg-gray-700 rounded-lg p-3">
-                <h4 className="text-white font-medium mb-2 text-sm capitalize">{category} Features</h4>
+              <div key={category} className="bg-gray-700 rounded-lg p-4">
+                <h4 className="text-white font-medium mb-3 capitalize">{category} Features</h4>
                 <div className="space-y-2">
                   {aiFeatures
                     .filter(f => f.category === category)
                     .map((feature) => (
-                      <label key={feature.id} className="flex items-start space-x-2 cursor-pointer">
+                      <label key={feature.id} className="flex items-center space-x-3 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={feature.enabled}
                           onChange={() => toggleAIFeature(feature.id)}
-                          className="w-4 h-4 mt-0.5 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500"
+                          className="w-4 h-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500"
                         />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-gray-300 text-xs font-medium">{feature.name}</div>
+                        <span className={`${feature.color} text-sm`}>{feature.icon}</span>
+                        <div className="flex-1">
+                          <div className="text-gray-300 text-sm font-medium">{feature.name}</div>
                           <div className="text-gray-500 text-xs">{feature.description}</div>
                         </div>
                       </label>
                     ))}
-                  {/* Burn-in toggle */}
+                  {/* Burn-in toggle (mapped backend key: burnInSubtitles) */}
                   {category === 'text' && (
-                    <label className="flex items-start space-x-2 cursor-pointer">
+                    <label className="flex items-center space-x-3 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={burnInSubtitles}
                         onChange={() => setBurnInSubtitles(!burnInSubtitles)}
-                        className="w-4 h-4 mt-0.5 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500"
+                        className="w-4 h-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500"
                       />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-gray-300 text-xs font-medium">Burn-in Subtitles</div>
-                        <div className="text-gray-500 text-xs">Embeds captions into video</div>
+                      <span className="text-cyan-400 text-sm"><Captions className="w-5 h-5" /></span>
+                      <div className="flex-1">
+                        <div className="text-gray-300 text-sm font-medium">Burn-in Subtitles (requires ImageMagick)</div>
+                        <div className="text-gray-500 text-xs">Embeds captions into video frames</div>
                       </div>
                     </label>
                   )}
@@ -1033,7 +1841,7 @@ function RealAIDashboard() {
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Processing Modal */}
