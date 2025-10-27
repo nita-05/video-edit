@@ -58,7 +58,6 @@ import {
   Volume1,
   Volume2 as Volume2Icon,
   Mic2,
-  Headphones2,
   Calendar as CalendarIcon,
   Globe as GlobeIcon,
   Instagram as InstagramIcon,
