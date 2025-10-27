@@ -41,7 +41,12 @@ load_dotenv('../.env')
 load_dotenv('.env')
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000", "http://127.0.0.1:3000"]}})
+CORS(app, resources={r"/api/*": {"origins": [
+    "http://localhost:3000", 
+    "http://127.0.0.1:3000",
+    "https://vedit-app.vercel.app",
+    "https://*.vercel.app"
+]}})
 
 # Cloudinary configuration
 cloudinary.config(
