@@ -37,9 +37,10 @@ backend/*.mp4
 backend/*.wav
 backend/*.vtt
 backend/*.srt
-# Allow requirements.txt but ignore other .txt files in backend
+# Allow requirements.txt and runtime.txt but ignore other .txt files in backend
 backend/*.txt
 !backend/requirements.txt
+!backend/runtime.txt
 backend/temp_*
 backend/merged_*
 backend/final_video_*
