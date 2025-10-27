@@ -1466,7 +1466,7 @@ function RealAIDashboard() {
                                 key={clip.id}
                                 draggable
                                 onDragStart={(e) => {
-                                  e.dataTransfer.setData('clipId', clip.id);
+                                  (e as unknown as React.DragEvent).dataTransfer.setData('clipId', clip.id);
                                 }}
                                 className={`absolute h-8 rounded cursor-move flex items-center justify-center text-xs text-white font-medium ${
                                   selectedClipsForMerge.includes(clip.id)
