@@ -69,6 +69,7 @@ import {
 } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import ProtectedRoute from '../../components/ProtectedRoute';
+import { apiService, API_BASE_URL } from '@/lib/api';
 
 // Types
 interface VideoClip {
@@ -196,10 +197,10 @@ function RealAIDashboard() {
   
   // VIA Profiles state
   const [voiceProfiles, setVoiceProfiles] = useState<VoiceProfile[]>([
-    { id: 'default', name: 'Default Voice', voiceType: 'Natural', isActive: true, previewUrl: 'http://localhost:5000/api/voice/sample/default.mp3' },
-    { id: 'professional', name: 'Professional', voiceType: 'Business', isActive: false, previewUrl: 'http://localhost:5000/api/voice/sample/professional.mp3' },
-    { id: 'casual', name: 'Casual', voiceType: 'Friendly', isActive: false, previewUrl: 'http://localhost:5000/api/voice/sample/casual.mp3' },
-    { id: 'dramatic', name: 'Dramatic', voiceType: 'Theatrical', isActive: false, previewUrl: 'http://localhost:5000/api/voice/sample/dramatic.mp3' }
+    { id: 'default', name: 'Default Voice', voiceType: 'Natural', isActive: true, previewUrl: `${API_URL}/voice/sample/default.mp3` },
+    { id: 'professional', name: 'Professional', voiceType: 'Business', isActive: false, previewUrl: `${API_URL}/voice/sample/professional.mp3` },
+    { id: 'casual', name: 'Casual', voiceType: 'Friendly', isActive: false, previewUrl: `${API_URL}/voice/sample/casual.mp3` },
+    { id: 'dramatic', name: 'Dramatic', voiceType: 'Theatrical', isActive: false, previewUrl: `${API_URL}/voice/sample/dramatic.mp3` }
   ]);
   const [isRecording, setIsRecording] = useState(false);
   const [isGeneratingVoice, setIsGeneratingVoice] = useState(false);
@@ -273,7 +274,7 @@ function RealAIDashboard() {
     if (jobId && isProcessing) {
       const interval = setInterval(async () => {
         try {
-          const response = await fetch(`http://localhost:5000/api/status/${jobId}`);
+          const response = await fetch(`${API_URL}/status/${jobId}`);
           const status = await response.json();
           
           setProcessingStep(status.status || 'Processing...');
@@ -282,7 +283,7 @@ function RealAIDashboard() {
           if (status.status === 'COMPLETED' && status.result) {
             setProcessedVideoUrl(status.result.processed_video_url);
             if (status.result.captions_url) {
-              setProcessedCaptionsUrl(`http://localhost:5000${status.result.captions_url}`);
+              setProcessedCaptionsUrl(`${API_URL}${status.result.captions_url}`);
             } else {
               setProcessedCaptionsUrl(null);
             }
@@ -394,7 +395,7 @@ function RealAIDashboard() {
     applyClientHeuristicsFromText(chatInput);
     // Real AI response using OpenAI
     try {
-      const response = await fetch('http://localhost:5000/api/ai/chat', {
+      const response = await fetch(`${API_URL}/ai/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: chatInput })
@@ -434,7 +435,7 @@ function RealAIDashboard() {
   const generateAISuggestions = async () => {
     setIsGeneratingSuggestions(true);
     try {
-      const response = await fetch('http://localhost:5000/api/ai/suggestions', {
+      const response = await fetch(`${API_URL}/ai/suggestions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ videoCount: videoTracks.length })
@@ -474,7 +475,7 @@ function RealAIDashboard() {
         return;
       }
       
-      const res = await fetch(`http://localhost:5000/api/vport/connect/${endpoint}`);
+      const res = await fetch(`${API_URL}/vport/connect/${endpoint}`);
       const data = await res.json();
       
       if (data.auth_url) {
@@ -513,7 +514,7 @@ function RealAIDashboard() {
     // Fetch connection status for all platforms
     const fetchStatus = async () => {
       try {
-        const r = await fetch('http://localhost:5000/api/vport/status/youtube');
+        const r = await fetch(`${API_URL}/vport/status/youtube`);
         const j = await r.json();
         setYtStatus(j);
       } catch (e) {
@@ -525,7 +526,7 @@ function RealAIDashboard() {
 
   const schedulePost = async (platformId: string, content: any) => {
     try {
-      const response = await fetch('http://localhost:5000/api/vport/schedule', {
+      const response = await fetch(`${API_URL}/vport/schedule`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ platform: platformId, content })
@@ -568,7 +569,7 @@ function RealAIDashboard() {
         'dramatic': 'onyx'
       };
       
-      const response = await fetch('http://localhost:5000/api/voice/tts', {
+      const response = await fetch(`${API_URL}/voice/tts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -638,7 +639,7 @@ function RealAIDashboard() {
         const formData = new FormData();
         formData.append('file', file);
         console.log('Uploading file to server:', file.name);
-        const uploadResponse = await fetch('http://localhost:5000/api/upload', {
+        const uploadResponse = await fetch(`${API_URL}/upload`, {
           method: 'POST',
           body: formData
         });
@@ -687,7 +688,7 @@ function RealAIDashboard() {
         const blob = await res.blob();
         const formData = new FormData();
         formData.append('file', new File([blob], clip.name, { type: blob.type || 'video/mp4' }));
-        const up = await fetch('http://localhost:5000/api/upload', { method: 'POST', body: formData });
+        const up = await fetch(`${API_URL}/upload`, { method: 'POST', body: formData });
         if (!up.ok) {
           const t = await up.text();
           throw new Error(`upload failed: ${t}`);
@@ -766,7 +767,7 @@ function RealAIDashboard() {
 
       const performMerge = async (attempt: number): Promise<void> => {
         try {
-          const res = await fetch('http://localhost:5000/api/ai/merge', {
+          const res = await fetch(`${API_URL}/ai/merge`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestData)
@@ -1585,7 +1586,7 @@ function RealAIDashboard() {
                                  setIsPublishing(true);
                                  try {
                                    // Directly send the processed video URL to the backend publish endpoint
-                                   const response = await fetch(`http://localhost:5000/api/vport/publish/${platform.id}`, {
+                                   const response = await fetch(`${API_URL}/vport/publish/${platform.id}`, {
                                      method: 'POST',
                                      headers: { 'Content-Type': 'application/json' },
                                      body: JSON.stringify({
