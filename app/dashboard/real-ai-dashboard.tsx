@@ -813,8 +813,17 @@ function RealAIDashboard() {
     );
   };
 
-  const handleLogout = () => {
-    signOut({ callbackUrl: '/' });
+  const handleLogout = async () => {
+    await signOut({ redirect: true });
+  };
+
+  // Select/deselect clip for merging
+  const selectClip = (clip: VideoClip) => {
+    if (selectedClipsForMerge.includes(clip.id)) {
+      setSelectedClipsForMerge(prev => prev.filter(id => id !== clip.id));
+    } else {
+      setSelectedClipsForMerge(prev => [...prev, clip.id]);
+    }
   };
 
   const enabledFeaturesCount = aiFeatures.filter(f => f.enabled).length;
