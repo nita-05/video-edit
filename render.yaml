@@ -3,7 +3,7 @@ services:
     name: vedit-backend
     runtime: python
     pythonVersion: "3.11.7"
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && pip install --upgrade "openai>=1.12.0" --force-reinstall
     startCommand: cd backend && python app.py
     envVars:
       - key: PYTHON_VERSION

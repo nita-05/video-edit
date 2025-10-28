@@ -26,6 +26,7 @@ import numpy as np
 from moviepy.editor import VideoFileClip, CompositeVideoClip, TextClip, concatenate_videoclips, ColorClip, AudioFileClip
 from moviepy.video.fx.all import colorx, lum_contrast, blackwhite, crop, resize
 try:
+    import openai
     from openai import OpenAI
 except ImportError:
     # Fallback for older versions (should not be needed with openai>=1.12.0)
@@ -33,6 +34,7 @@ except ImportError:
         import openai
         OpenAI = openai.OpenAI
     except:
+        openai = None
         OpenAI = None
         print("⚠️ Warning: OpenAI package not installed correctly")
 import requests
@@ -85,20 +87,52 @@ if OpenAI is None:
     print("❌ Warning: OpenAI package not available. Please install: pip install openai>=1.12.0")
 elif openai_key and openai_key.strip():
     try:
-        # Use only api_key parameter (no proxies or other deprecated params)
-        openai_client = OpenAI(api_key=openai_key.strip())
-        # Test the client by getting model info (this verifies the key works)
-        print("✅ OpenAI client initialized successfully")
+        # Check OpenAI version first
+        if openai and hasattr(openai, '__version__'):
+            openai_version = openai.__version__
+            print(f"📦 OpenAI SDK version detected: {openai_version}")
+            # Check if version is too old
+            try:
+                from packaging import version
+                if version.parse(openai_version) < version.parse("1.0.0"):
+                    print(f"⚠️ Warning: OpenAI SDK version {openai_version} is outdated. Need >= 1.12.0")
+                    print("⚠️ Attempting to use workaround for old SDK...")
+                    # Try using the old API format
+                    import openai as old_openai
+                    old_openai.api_key = openai_key.strip()
+                    openai_client = old_openai  # This is a workaround for old SDK
+                    print("✅ Using legacy OpenAI SDK workaround")
+                else:
+                    # Use modern SDK
+                    openai_client = OpenAI(api_key=openai_key.strip())
+                    print("✅ OpenAI client initialized successfully (modern SDK)")
+            except ImportError:
+                # packaging not available, just try to use it
+                openai_client = OpenAI(api_key=openai_key.strip())
+                print("✅ OpenAI client initialized successfully")
+        else:
+            # No version info, try modern API
+            openai_client = OpenAI(api_key=openai_key.strip())
+            print("✅ OpenAI client initialized successfully")
+        
         print(f"✅ OpenAI API key loaded (length: {len(openai_key)} characters)")
-        print(f"✅ OpenAI SDK version: {openai.__version__ if hasattr(openai, '__version__') else 'unknown'}")
     except TypeError as e:
         # Handle version compatibility issues
         if 'proxies' in str(e) or 'unexpected keyword' in str(e):
             print(f"⚠️ Warning: OpenAI SDK version compatibility issue: {e}")
-            print("⚠️ Please update OpenAI package: pip install --upgrade openai>=1.12.0")
+            print("⚠️ The installed OpenAI SDK is outdated. Trying fallback initialization...")
+            try:
+                # Fallback: Try without any extra params
+                import openai as old_openai
+                old_openai.api_key = openai_key.strip()
+                openai_client = old_openai
+                print("✅ Using legacy OpenAI SDK workaround")
+            except Exception as fallback_error:
+                print(f"❌ Fallback also failed: {fallback_error}")
+                openai_client = None
         else:
             print(f"⚠️ Warning: OpenAI client initialization failed: {e}")
-        openai_client = None
+            openai_client = None
     except Exception as e:
         print(f"⚠️ Warning: OpenAI client initialization failed: {e}")
         print(f"⚠️ Error type: {type(e).__name__}")
