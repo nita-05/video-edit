@@ -28,7 +28,13 @@ from moviepy.video.fx.all import colorx, lum_contrast, blackwhite, crop, resize
 try:
     from openai import OpenAI
 except ImportError:
-    from openai import OpenAIClient as OpenAI
+    # Fallback for older versions (should not be needed with openai>=1.12.0)
+    try:
+        import openai
+        OpenAI = openai.OpenAI
+    except:
+        OpenAI = None
+        print("⚠️ Warning: OpenAI package not installed correctly")
 import requests
 import time
 import threading
@@ -72,12 +78,27 @@ cloudinary.config(
 
 # OpenAI configuration
 # Try multiple ways to get the API key (for both local and Render deployment)
+openai_client = None
 openai_key = os.getenv('OPENAI_API_KEY') or os.environ.get('OPENAI_API_KEY')
-if openai_key and openai_key.strip():
+
+if OpenAI is None:
+    print("❌ Warning: OpenAI package not available. Please install: pip install openai>=1.12.0")
+elif openai_key and openai_key.strip():
     try:
+        # Use only api_key parameter (no proxies or other deprecated params)
         openai_client = OpenAI(api_key=openai_key.strip())
+        # Test the client by getting model info (this verifies the key works)
         print("✅ OpenAI client initialized successfully")
         print(f"✅ OpenAI API key loaded (length: {len(openai_key)} characters)")
+        print(f"✅ OpenAI SDK version: {openai.__version__ if hasattr(openai, '__version__') else 'unknown'}")
+    except TypeError as e:
+        # Handle version compatibility issues
+        if 'proxies' in str(e) or 'unexpected keyword' in str(e):
+            print(f"⚠️ Warning: OpenAI SDK version compatibility issue: {e}")
+            print("⚠️ Please update OpenAI package: pip install --upgrade openai>=1.12.0")
+        else:
+            print(f"⚠️ Warning: OpenAI client initialization failed: {e}")
+        openai_client = None
     except Exception as e:
         print(f"⚠️ Warning: OpenAI client initialization failed: {e}")
         print(f"⚠️ Error type: {type(e).__name__}")
@@ -85,7 +106,6 @@ if openai_key and openai_key.strip():
 else:
     print("❌ Warning: OPENAI_API_KEY not found in environment variables")
     print(f"❌ Available env vars with 'OPENAI' in name: {[k for k in os.environ.keys() if 'OPENAI' in k.upper()]}")
-    openai_client = None
 
 # Model defaults (override with env if needed)
 OPENAI_MODEL_CHAT = os.getenv('OPENAI_MODEL_CHAT', 'gpt-4o')
