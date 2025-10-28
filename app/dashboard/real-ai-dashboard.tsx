@@ -2570,7 +2570,9 @@ function RealAIDashboard() {
 
                     >
 
-                      {suggestion}
+                      <div className="font-medium text-white">{suggestion.feature}</div>
+                      <div className="text-gray-400 text-xs mt-1">{suggestion.reason}</div>
+                      <div className="text-blue-400 text-xs mt-1">Confidence: {suggestion.confidence}</div>
 
                     </div>
 
