@@ -25,7 +25,10 @@ import cv2
 import numpy as np
 from moviepy.editor import VideoFileClip, CompositeVideoClip, TextClip, concatenate_videoclips, ColorClip, AudioFileClip
 from moviepy.video.fx.all import colorx, lum_contrast, blackwhite, crop, resize
-from openai import OpenAI
+try:
+    from openai import OpenAI
+except ImportError:
+    from openai import OpenAIClient as OpenAI
 import requests
 import time
 import threading
