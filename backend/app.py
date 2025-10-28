@@ -3096,6 +3096,9 @@ def tts_sample_noext(name: str):
     return tts_sample(name)
 
 if __name__ == '__main__':
+    # Get port from environment variable (for Render) or default to 5000
+    port = int(os.environ.get('PORT', 5000))
+    
     print("🚀 Starting VEDIT PRODUCTION FAST Backend Server...")
     print("✅ OpenAI Integration: ENABLED")
     print("✅ Real AI Processing: ENABLED")
@@ -3107,10 +3110,10 @@ if __name__ == '__main__':
     print("✅ Fast Processing: ENABLED")
     print("✅ Background Processing: ENABLED")
     print("Backend will be available at:")
-    print("   - http://localhost:5000")
-    print("   - http://127.0.0.1:5000")
-    print("Port: 5000")
+    print("   - http://localhost:{}".format(port))
+    print("   - http://127.0.0.1:{}".format(port))
+    print("Port: {}".format(port))
     print("Debug mode: ON")
     print("Diagnostics: /api/diag (root) and /api/vport/diag")
     # Run without auto-reloader to avoid wiping in-memory job state mid-processing
-    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False, threaded=True)
+    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False, threaded=True)
