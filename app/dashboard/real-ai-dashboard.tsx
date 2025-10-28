@@ -904,7 +904,7 @@ function RealAIDashboard() {
           const systemMessage: ChatMessage = {
             id: (Date.now() + 2).toString(),
             type: 'ai',
-            content: `✅ Enabled: ${enabledFeatures.map(f => f.replace(/-/g, ' ')).join(', ')}. Check the AI Features panel on the right! →`,
+            content: `✅ Enabled: ${enabledFeatures.map((f: string) => f.replace(/-/g, ' ')).join(', ')}. Check the AI Features panel on the right! →`,
             timestamp: new Date()
           };
           setChatMessages(prev => [...prev, systemMessage]);
