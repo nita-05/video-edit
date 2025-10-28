@@ -570,6 +570,24 @@ function RealAIDashboard() {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const aiFeaturesSidebarRef = useRef<HTMLDivElement>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const [newlyEnabledFeatures, setNewlyEnabledFeatures] = useState<string[]>([]);
+  
+  // Timeline scroll functions
+  const scrollTimeline = (direction: 'left' | 'right') => {
+    if (timelineRef.current) {
+      const scrollAmount = 200; // pixels to scroll
+      const currentScroll = timelineRef.current.scrollLeft;
+      const newScroll = direction === 'left' 
+        ? currentScroll - scrollAmount 
+        : currentScroll + scrollAmount;
+      timelineRef.current.scrollTo({
+        left: newScroll,
+        behavior: 'smooth'
+      });
+    }
+  };
 
 
 
@@ -2082,6 +2100,11 @@ function RealAIDashboard() {
         
         setSuggestedFeatures(data.suggestedFeatures);
         
+        // Track newly enabled features for highlighting
+        setNewlyEnabledFeatures(data.suggestedFeatures);
+        // Clear highlight after 5 seconds
+        setTimeout(() => setNewlyEnabledFeatures([]), 5000);
+        
         // Show detailed analysis with MANY features applied + filter auto-applied
         const filterNote = data.recommendedFilter ? `\n\n🎨 AUTO-APPLIED FILTER: ${data.recommendedFilter.replace(/-/g, ' ').toUpperCase()}` : '';
         const filterOptions = data.alternativeFilters ? `\n\n🎨 Or try other filters:\n${data.alternativeFilters.map((f: string) => `• ${f.replace(/-/g, ' ').toUpperCase()}`).join('\n')}` : '';
@@ -2099,6 +2122,24 @@ function RealAIDashboard() {
         
         // Auto-switch to Editor tab so they can see & edit
         setActiveTab('editor');
+        
+        // Scroll to first enabled feature after a short delay to ensure DOM is updated
+        setTimeout(() => {
+          if (data.suggestedFeatures.length > 0 && aiFeaturesSidebarRef.current) {
+            // Find the first enabled feature element
+            const firstEnabledId = data.suggestedFeatures[0];
+            const featureElement = aiFeaturesSidebarRef.current.querySelector(`[data-feature-id="${firstEnabledId}"]`);
+            if (featureElement) {
+              featureElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+              // Fallback: scroll to top of AI features section
+              const featuresSection = aiFeaturesSidebarRef.current.querySelector('[data-features-section]');
+              if (featuresSection) {
+                featuresSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+            }
+          }
+        }, 300);
       }
     } catch (error) {
       console.error('AI Auto-Edit error:', error);
@@ -2382,7 +2423,7 @@ function RealAIDashboard() {
 
         <motion.div 
 
-          className="hidden lg:block lg:w-80 bg-gray-800 border-r border-gray-700 p-4 overflow-y-auto"
+          className="hidden lg:block lg:w-80 bg-gray-800 border-r border-gray-700 p-6 overflow-y-auto"
 
           initial={{ x: -50, opacity: 0 }}
 
@@ -2392,7 +2433,7 @@ function RealAIDashboard() {
 
         >
 
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-6">
 
             <h3 className="text-white font-medium text-lg flex items-center">
 
@@ -2598,7 +2639,7 @@ function RealAIDashboard() {
 
           <div className="bg-gray-800 border-b border-gray-700 px-3 sm:px-6 py-2 sm:py-3">
 
-            <div className="flex space-x-2 sm:space-x-4 lg:space-x-8 overflow-x-auto">
+            <div className="flex space-x-3 sm:space-x-6 lg:space-x-10 overflow-x-auto px-4">
 
               {[
 
@@ -2618,7 +2659,7 @@ function RealAIDashboard() {
 
                   onClick={() => setActiveTab(tab.id as any)}
 
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                  className={`flex items-center space-x-2 px-5 py-3 rounded-lg transition-colors ${
 
                     activeTab === tab.id
 
@@ -2770,9 +2811,9 @@ function RealAIDashboard() {
 
                         {/* Video Preview Area - SCROLLABLE */}
 
-                        <div className="flex-1 bg-gray-900 p-4 pb-20 overflow-y-auto">
+                        <div className="flex-1 bg-gray-900 p-6 pb-20 overflow-y-auto">
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl mx-auto">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl mx-auto">
 
                               {videoTracks.map((clip, index) => (
 
@@ -3295,9 +3336,9 @@ function RealAIDashboard() {
 
                   {/* Multi-Track Timeline with Drag & Drop */}
 
-                  <div className="bg-gray-900 border-t border-gray-700 p-4">
+                  <div className="bg-gray-900 border-t border-gray-700 p-5">
 
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center justify-between mb-4">
 
                       <div className="flex items-center space-x-4">
 
@@ -3315,21 +3356,47 @@ function RealAIDashboard() {
 
                       </div>
 
-                      <div className="text-gray-400 text-sm">
+                      <div className="flex items-center space-x-3">
+                        {/* Timeline Scroll Buttons */}
+                        <div className="flex items-center space-x-1">
+                          <button
+                            onClick={() => scrollTimeline('left')}
+                            className="p-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+                            title="Scroll timeline left"
+                            aria-label="Scroll timeline left"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => scrollTimeline('right')}
+                            className="p-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+                            title="Scroll timeline right"
+                            aria-label="Scroll timeline right"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </button>
+                        </div>
                         
-                        {(() => {
-                          if (videoTracks.length === 0) return '00:00:00:00';
+                        <div className="text-gray-400 text-sm">
                           
-                          // Check if all clips are images
-                          const allImages = videoTracks.every(clip => clip.type === 'image');
-                          if (allImages) return '';
+                          {(() => {
+                            if (videoTracks.length === 0) return '00:00:00:00';
+                            
+                            // Check if all clips are images
+                            const allImages = videoTracks.every(clip => clip.type === 'image');
+                            if (allImages) return '';
+                            
+                            // For videos, calculate total duration
+                            const videoOnlyTracks = videoTracks.filter(clip => clip.type !== 'image');
+                            const totalDuration = videoOnlyTracks.reduce((sum, clip) => sum + clip.duration, 0);
+                            return `${totalDuration.toFixed(1)}s total`;
+                          })()}
                           
-                          // For videos, calculate total duration
-                          const videoOnlyTracks = videoTracks.filter(clip => clip.type !== 'image');
-                          const totalDuration = videoOnlyTracks.reduce((sum, clip) => sum + clip.duration, 0);
-                          return `${totalDuration.toFixed(1)}s total`;
-                        })()}
-                        
+                        </div>
                       </div>
 
                     </div>
@@ -3338,7 +3405,7 @@ function RealAIDashboard() {
 
                     {/* Interactive Timeline Tracks */}
 
-                    <div className="bg-gray-800 rounded min-h-[120px] relative overflow-x-auto">
+                    <div ref={timelineRef} className="bg-gray-800 rounded min-h-[120px] relative overflow-x-auto">
 
                       {[0, 1, 2].map((trackNum) => (
 
@@ -3466,7 +3533,7 @@ function RealAIDashboard() {
 
                     {videoTracks.length > 0 && (
 
-                      <div className="mt-2 text-xs text-gray-500 flex items-center space-x-4">
+                      <div className="mt-4 text-xs text-gray-500 flex items-center space-x-4">
 
                         <span>💡 Drag clips to reorder or move between tracks</span>
 
@@ -3993,8 +4060,8 @@ function RealAIDashboard() {
         {/* Right Sidebar - AI Features */}
 
         <motion.div 
-
-          className="hidden lg:block lg:w-80 bg-gray-800 border-l border-gray-700 p-4 overflow-y-auto max-h-[calc(100vh-80px)]"
+          ref={aiFeaturesSidebarRef}
+          className="hidden lg:block lg:w-80 bg-gray-800 border-l border-gray-700 p-6 overflow-y-auto max-h-[calc(100vh-80px)]"
 
           initial={{ x: 50, opacity: 0 }}
 
@@ -4004,7 +4071,7 @@ function RealAIDashboard() {
 
         >
 
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-6">
 
             <h3 className="text-white font-medium text-lg">VEDIT AI Features</h3>
 
@@ -4022,7 +4089,7 @@ function RealAIDashboard() {
 
           {/* File Upload */}
 
-          <div className="bg-gray-700 rounded-lg p-4 mb-4">
+          <div className="bg-gray-700 rounded-lg p-5 mb-5">
 
             <h4 className="text-white font-medium mb-3">Upload Media</h4>
 
@@ -4060,14 +4127,14 @@ function RealAIDashboard() {
 
           {/* Quick Actions */}
           {videoTracks.length > 0 && (
-            <div className="bg-gray-700 rounded-lg p-4 mb-4">
-              <h4 className="text-white font-medium mb-3">Quick Actions</h4>
-              <div className="space-y-2">
+            <div className="bg-gray-700 rounded-lg p-5 mb-5">
+              <h4 className="text-white font-medium mb-4">Quick Actions</h4>
+              <div className="space-y-3">
                 {/* AI AUTO-EDIT - Main Feature */}
                 <button
                   onClick={handleAIAutoEdit}
                   disabled={isAnalyzing}
-                  className="w-full flex items-center justify-center space-x-2 px-6 py-4 bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 text-white rounded-lg hover:from-purple-700 hover:via-pink-700 hover:to-red-700 transition-all disabled:opacity-50 shadow-lg border-2 border-purple-400/50 animate-pulse hover:animate-none font-bold text-lg"
+                  className="w-full flex items-center justify-center space-x-2 px-5 py-3.5 bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 text-white rounded-lg hover:from-purple-700 hover:via-pink-700 hover:to-red-700 transition-all disabled:opacity-50 shadow-lg border-2 border-purple-400/50 animate-pulse hover:animate-none font-bold text-base"
                 >
                   {isAnalyzing ? (
                     <>
@@ -4090,7 +4157,7 @@ function RealAIDashboard() {
                 <button
                   onClick={handleGeneratePreview}
                   disabled={isGeneratingPreview}
-                  className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all disabled:opacity-50"
+                  className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all disabled:opacity-50"
                 >
                   {isGeneratingPreview ? (
                     <>
@@ -4107,7 +4174,7 @@ function RealAIDashboard() {
                 
                 <button
                   onClick={handleAddText}
-                  className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all"
+                  className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all"
                 >
                   <Type className="w-4 h-4" />
                   <span>Add Text Overlay</span>
@@ -4123,22 +4190,29 @@ function RealAIDashboard() {
           )}
           
           {/* AI Features by Category - Full Editing Controls */}
-          <div className="space-y-4">
+          <div className="space-y-5" data-features-section>
 
             {['video', 'effects', 'text', 'audio'].map((category) => (
-              <div key={category} className="bg-gray-700 rounded-lg p-4">
+              <div key={category} className="bg-gray-700 rounded-lg p-5">
 
-                <h4 className="text-white font-medium mb-3 capitalize">{category} Features</h4>
+                <h4 className="text-white font-medium mb-4 capitalize">{category} Features</h4>
 
-                <div className="space-y-2">
+                <div className="space-y-3">
 
                   {aiFeatures
 
                     .filter(f => f.category === category)
 
-                    .map((feature) => (
-
-                      <label key={feature.id} className="flex items-center space-x-3 cursor-pointer">
+                    .map((feature) => {
+                      const isNewlyEnabled = newlyEnabledFeatures.includes(feature.id);
+                      return (
+                      <label 
+                        key={feature.id} 
+                        data-feature-id={feature.id}
+                        className={`flex items-center space-x-3 cursor-pointer p-2.5 rounded transition-all ${
+                          isNewlyEnabled ? 'bg-green-900/50 border-2 border-green-500 animate-pulse' : ''
+                        }`}
+                      >
 
                         <input
 
@@ -4156,7 +4230,10 @@ function RealAIDashboard() {
 
                         <div className="flex-1">
 
-                          <div className="text-gray-300 text-sm font-medium">{feature.name}</div>
+                          <div className="text-gray-300 text-sm font-medium flex items-center gap-2">
+                            {feature.name}
+                            {isNewlyEnabled && <span className="text-xs bg-green-600 text-white px-1.5 py-0.5 rounded">NEW</span>}
+                          </div>
 
                           <div className="text-gray-500 text-xs">{feature.description}</div>
 
@@ -4164,7 +4241,7 @@ function RealAIDashboard() {
 
                       </label>
 
-                    ))}
+                    )})}
 
                   {/* Burn-in toggle (mapped backend key: burnInSubtitles) */}
 
