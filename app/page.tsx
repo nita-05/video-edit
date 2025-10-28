@@ -2,12 +2,13 @@
 
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Play, Upload, Sparkles, Download, Mail, Star, Zap, Video, Clock, Users, Award } from 'lucide-react'
+import { Play, Upload, Sparkles, Download, Mail, Star, Zap, Video, Clock, Users, Award, Menu, X } from 'lucide-react'
 import PaymentModal from '../components/PaymentModal'
 import ContactSalesModal from '../components/ContactSalesModal'
 import FooterModal from '../components/FooterModal'
 
 export default function LandingPage() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [paymentModal, setPaymentModal] = useState<{
     isOpen: boolean;
     plan: any;
@@ -80,16 +81,16 @@ export default function LandingPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       {/* Navigation */}
       <nav className="fixed top-0 w-full bg-gray-900/80 backdrop-blur-md z-50 border-b border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
+          <div className="flex justify-between items-center h-16 lg:h-20">
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">V</span>
+              <div className="w-8 h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-lg lg:text-xl">V</span>
               </div>
-              <span className="text-white font-bold text-xl">VEDIT</span>
+              <span className="text-white font-bold text-xl lg:text-2xl">VEDIT</span>
             </div>
             
-            <div className="hidden md:flex items-center space-x-8">
+            <div className="hidden md:flex items-center space-x-6 lg:space-x-10">
               <button 
                 onClick={() => scrollToSection('features')}
                 className="text-gray-300 hover:text-white transition-colors"
@@ -117,25 +118,91 @@ export default function LandingPage() {
             </div>
             
             <div className="flex items-center space-x-4">
+              {/* Mobile Menu Button */}
               <button 
-              onClick={() => window.location.href = '/auth'}
-                className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-2 rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all duration-300"
-            >
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden text-gray-300 hover:text-white"
+              >
+                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+              
+              {/* Desktop Sign In Button */}
+              <button 
+                onClick={() => window.location.href = '/auth'}
+                className="hidden md:block bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-2 rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all duration-300"
+              >
                 Sign In
               </button>
-          </div>
+              
+              {/* Mobile Sign In Button */}
+              <button 
+                onClick={() => window.location.href = '/auth'}
+                className="md:hidden bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-2 rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all duration-300 text-sm"
+              >
+                Sign In
+              </button>
+            </div>
         </div>
         </div>
       </nav>
 
+      {/* Mobile Menu */}
+      {mobileMenuOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          className="fixed top-16 left-0 right-0 bg-gray-900 border-b border-gray-700 z-40 md:hidden"
+        >
+          <div className="px-4 py-4 space-y-3">
+            <button 
+              onClick={() => {
+                scrollToSection('features');
+                setMobileMenuOpen(false);
+              }}
+              className="block w-full text-left text-gray-300 hover:text-white transition-colors py-2"
+            >
+              Features
+            </button>
+            <button 
+              onClick={() => {
+                scrollToSection('how it works');
+                setMobileMenuOpen(false);
+              }}
+              className="block w-full text-left text-gray-300 hover:text-white transition-colors py-2"
+            >
+              How it Works
+            </button>
+            <button 
+              onClick={() => {
+                scrollToSection('pricing');
+                setMobileMenuOpen(false);
+              }}
+              className="block w-full text-left text-gray-300 hover:text-white transition-colors py-2"
+            >
+              Pricing
+            </button>
+            <button 
+              onClick={() => {
+                scrollToSection('templates');
+                setMobileMenuOpen(false);
+              }}
+              className="block w-full text-left text-gray-300 hover:text-white transition-colors py-2"
+            >
+              Templates
+            </button>
+          </div>
+        </motion.div>
+      )}
+
       {/* Hero Section */}
-      <section className="pt-20 pb-16 px-4 sm:px-6 lg:px-8">
+      <section className="pt-24 pb-20 px-4 sm:px-6 lg:px-8 xl:px-12">
         <div className="max-w-7xl mx-auto text-center">
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-5xl md:text-7xl font-bold text-white mb-6"
+            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold text-white mb-6 leading-tight"
           >
             AI-Powered
             <span className="block bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
@@ -147,7 +214,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto"
+            className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-gray-300 mb-12 max-w-4xl mx-auto px-4"
           >
             Transform your raw footage into professional-quality videos 10x faster with our intelligent AI editor
           </motion.p>
@@ -156,20 +223,20 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center items-center"
+            className="flex flex-col sm:flex-row gap-4 justify-center items-center px-4"
           >
             <button 
               onClick={() => window.location.href = '/auth'}
-              className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:from-blue-600 hover:to-purple-600 transition-all duration-300 flex items-center space-x-2"
+              className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-3 sm:px-8 sm:py-4 lg:px-10 lg:py-5 rounded-xl text-base sm:text-lg lg:text-xl font-semibold hover:from-blue-600 hover:to-purple-600 transition-all duration-300 flex items-center space-x-2"
             >
-                <Play className="w-5 h-5" />
+                <Play className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>Start Editing Free</span>
             </button>
             <button 
               onClick={() => scrollToSection('see it in action')}
-              className="border border-gray-600 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-gray-800 transition-all duration-300 flex items-center space-x-2"
+              className="border border-gray-600 text-white px-6 py-3 sm:px-8 sm:py-4 lg:px-10 lg:py-5 rounded-xl text-base sm:text-lg lg:text-xl font-semibold hover:bg-gray-800 transition-all duration-300 flex items-center space-x-2"
             >
-              <Video className="w-5 h-5" />
+              <Video className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>See it in Action</span>
             </button>
           </motion.div>
@@ -177,14 +244,14 @@ export default function LandingPage() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-16 px-4 sm:px-6 lg:px-8">
+      <section id="features" className="py-16 lg:py-24 xl:py-32 px-4 sm:px-6 lg:px-8 xl:px-12">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-white mb-4">Powerful AI Features</h2>
-            <p className="text-xl text-gray-300">Everything you need to create professional videos</p>
+          <div className="text-center mb-12 lg:mb-20">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-4">Powerful AI Features</h2>
+            <p className="text-lg sm:text-xl lg:text-2xl text-gray-300">Everything you need to create professional videos</p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8">
             {[
               {
                 icon: <Zap className="w-8 h-8" />,

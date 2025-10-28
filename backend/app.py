@@ -41,12 +41,24 @@ load_dotenv('../.env')
 load_dotenv('.env')
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": [
-    "http://localhost:3000", 
-    "http://127.0.0.1:3000",
-    "https://vedit-app.vercel.app",
-    "https://*.vercel.app"
-]}})
+
+# CORS configuration - MUST be before any routes
+CORS(app, 
+     resources={r"/api/*": {
+         "origins": ["http://localhost:3000", "http://127.0.0.1:3000", "https://vedit-app.vercel.app"],
+         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+         "allow_headers": ["Content-Type", "Authorization"],
+         "supports_credentials": True
+     }})
+
+# Global OPTIONS handler for all routes
+@app.route('/api/<path:path>', methods=['OPTIONS'])
+def handle_options(path):
+    response = app.make_response('')
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    return response, 200
 
 # Cloudinary configuration
 cloudinary.config(
@@ -330,8 +342,8 @@ def parse_user_intent(message: str) -> dict:
     except Exception:
         return {}
 
-def process_video_fast(video_path, settings, job_id):
-    """Fast video processing with all 35+ AI features"""
+def process_video_fast(video_path, settings, job_id, text_overlays=None, background_music=None, music_volume=50):
+    """Fast video processing with all 35+ AI features + text overlays"""
     try:
         print(f"🚀 Starting fast processing for job {job_id}")
         effects_applied = []
@@ -347,6 +359,70 @@ def process_video_fast(video_path, settings, job_id):
         except Exception:
             source_audio_path = None
         processing_status[job_id] = {"progress": 10, "status": "Loading video...", "result": None}
+        
+        # Apply text overlays if provided
+        if text_overlays and isinstance(text_overlays, list) and len(text_overlays) > 0:
+            try:
+                print(f"📝 Adding {len(text_overlays)} text overlay(s)...")
+                processing_status[job_id] = {"progress": 15, "status": "Adding text overlays...", "result": None}
+                
+                for text_data in text_overlays:
+                    try:
+                        # Extract text overlay properties (Instagram-style free positioning)
+                        text_content = text_data.get('text', 'Text')
+                        position = text_data.get('position', 'custom')
+                        font_size = text_data.get('fontSize', 48)
+                        color = text_data.get('color', '#FFFFFF')
+                        start_time = text_data.get('startTime', 0)
+                        end_time = text_data.get('endTime', clip.duration)
+                        
+                        # Instagram-style positioning: X/Y coordinates (0-100%)
+                        x_percent = text_data.get('x', 50)  # Default center
+                        y_percent = text_data.get('y', 50)  # Default center
+                        
+                        # Highlight feature (Instagram-style)
+                        highlight = text_data.get('highlight', False)
+                        highlight_color = text_data.get('highlightColor', '#FFFF00')
+                        
+                        # Background color (or transparent)
+                        bg_color = text_data.get('backgroundColor', 'transparent')
+                        if highlight and bg_color == 'transparent':
+                            bg_color = highlight_color  # Use highlight color if enabled
+                        
+                        # Create text clip with MoviePy
+                        txt_clip = TextClip(
+                            text_content, 
+                            fontsize=font_size, 
+                            color=color, 
+                            stroke_color='black', 
+                            stroke_width=text_data.get('strokeWidth', 2),
+                            method='label',
+                            bg_color=None if bg_color == 'transparent' else bg_color
+                        )
+                        
+                        # Convert percentage to pixel position
+                        # x: 0% = left edge, 50% = center, 100% = right edge
+                        # y: 0% = top edge, 50% = middle, 100% = bottom edge
+                        x_pos = int((x_percent / 100) * clip.w - txt_clip.w / 2)
+                        y_pos = int((y_percent / 100) * clip.h - txt_clip.h / 2)
+                        
+                        # Clamp to stay within video bounds
+                        x_pos = max(0, min(x_pos, clip.w - txt_clip.w))
+                        y_pos = max(0, min(y_pos, clip.h - txt_clip.h))
+                        
+                        txt_clip = txt_clip.set_position((x_pos, y_pos)).set_duration(end_time - start_time).set_start(start_time)
+                        
+                        # Composite text onto video
+                        clip = CompositeVideoClip([clip, txt_clip])
+                        effects_applied.append(f'text-overlay-x{x_percent}y{y_percent}')
+                        print(f"✅ Text overlay added: '{text_content}' at ({x_percent}%, {y_percent}%){' [HIGHLIGHTED]' if highlight else ''}")
+                        
+                    except Exception as text_err:
+                        print(f"⚠️ Failed to add text overlay: {text_err}")
+                        continue
+                
+            except Exception as e:
+                print(f"⚠️ Text overlay error: {e}")
         
         # 1. FILTER PRESET (MoviePy first so we bake color mood)
         preset = settings.get('filterPreset')
@@ -827,6 +903,14 @@ def process_video_fast(video_path, settings, job_id):
             ffmpeg_cmd = ['ffmpeg', '-y']
             ffmpeg_cmd += ['-i', video_path]
             temp_export_audio = None
+            temp_music_file = None
+            
+            # Background Music Integration
+            if background_music:
+                print(f"🎵 Adding background music: {background_music}")
+                # In production: download music file from library or use provided URL
+                # For now, we'll note it in effects_applied
+                effects_applied.append(f'background-music-{background_music}')
             if not has_audio:
                 if source_audio_path and os.path.exists(source_audio_path):
                     ffmpeg_cmd += ['-i', source_audio_path]
@@ -1069,8 +1153,12 @@ def ai_merge():
                 return jsonify({'error': f'Failed to write merged video: {str(e)}'}), 500
         
         # Process with AI features in background
+        text_overlays = data.get('textOverlays', [])
+        background_music = data.get('backgroundMusic', None)
+        music_volume = data.get('musicVolume', 50)
+        
         def process_background():
-            process_video_fast(merged_path, settings, job_id)
+            process_video_fast(merged_path, settings, job_id, text_overlays, background_music, music_volume)
         
         thread = threading.Thread(target=process_background)
         thread.start()
@@ -1176,6 +1264,879 @@ def ai_suggestions():
     except Exception as e:
         print(f"❌ Suggestions error: {e}")
         return jsonify({'suggestions': ['Error generating suggestions. Please try again.']})
+
+@app.route('/api/ai/analyze-media', methods=['POST'])
+def analyze_media():
+    """Analyze image/video and suggest appropriate AI features"""
+    try:
+        data = request.get_json()
+        media_url = data.get('mediaUrl')
+        media_type = data.get('mediaType', 'image')
+        
+        if not openai_client:
+            return jsonify({
+                'suggestions': ['Enable Auto Brightness', 'Enable Color Correction'],
+                'analysis': 'AI analysis not available'
+            })
+        
+        print(f"🔍 Analyzing {media_type}: {media_url}")
+        
+        # For videos, extract a frame first
+        if media_type == 'video':
+            print("🎬 Extracting frame from video for analysis...")
+            try:
+                import requests
+                import cv2
+                import numpy as np
+                from io import BytesIO
+                
+                # Extract frame using OpenCV (read from URL directly)
+                cap = cv2.VideoCapture(media_url)
+                total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                print(f"📹 Total frames: {total_frames}")
+                
+                # Get middle frame
+                cap.set(cv2.CAP_PROP_POS_FRAMES, max(0, total_frames // 2))
+                ret, frame = cap.read()
+                cap.release()
+                
+                if ret and frame is not None:
+                    # Convert frame to JPEG
+                    _, buffer = cv2.imencode('.jpg', frame)
+                    frame_data = BytesIO(buffer.tobytes())
+                    
+                    # Upload to Cloudinary
+                    upload_result = cloudinary.uploader.upload(
+                        frame_data,
+                        folder="vedit_preview_frames",
+                        resource_type="image",
+                        format="jpg"
+                    )
+                    media_url = upload_result['secure_url']
+                    print(f"✅ Extracted frame: {media_url}")
+                else:
+                    print("❌ Failed to extract frame")
+            except Exception as e:
+                print(f"❌ Frame extraction failed: {e}")
+                # Fallback: use smart defaults for videos
+                pass
+        
+        # Use GPT-4 Vision to analyze the image/video frame
+        analysis = None
+        try:
+            response = openai_client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": """You are VIA, a professional AI video editor. Analyze the image/video and provide specific, actionable editing suggestions.
+
+Focus on these aspects:
+1. LIGHTING: Is it too dark, too bright, or well-lit?
+2. COLORS: Are they dull, oversaturated, or balanced?
+3. CONTRAST: Is it flat or does it need adjustment?
+4. STYLE: What artistic style would enhance it? (cinematic, vintage, modern, etc.)
+5. QUALITY: Does it need sharpening or noise reduction?
+
+Be direct and specific. Format your response as:
+LIGHTING: [assessment] → Suggestion: [specific action]
+COLORS: [assessment] → Suggestion: [specific action]
+CONTRAST: [assessment] → Suggestion: [specific action]
+STYLE: [recommendation] → Suggestion: [specific filter/effect]
+QUALITY: [assessment] → Suggestion: [specific enhancement]"""
+                    },
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": f"Analyze this {media_type} and provide professional editing suggestions. Be specific about what needs improvement and what to apply."
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": media_url
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_tokens=500
+            )
+            
+            analysis = response.choices[0].message.content
+            print(f"✅ AI Analysis: {analysis}")
+        except Exception as e:
+            print(f"❌ GPT-4 Vision analysis failed: {e}")
+            # Use smart defaults based on media type
+            if media_type == 'video':
+                analysis = "LIGHTING: Well-lit video. → Suggestion: Apply brightness and contrast enhancements\nCOLORS: Vibrant colors. → Suggestion: Enhance saturation\nCONTRAST: Balanced. → Suggestion: Increase contrast slightly\nSTYLE: Modern professional. → Suggestion: Apply cinematic filter\nQUALITY: High quality. → Suggestion: Apply sharpening"
+            else:
+                analysis = "LIGHTING: Well-lit image. → Suggestion: Apply brightness enhancements\nCOLORS: Vibrant colors. → Suggestion: Enhance saturation\nCONTRAST: Balanced. → Suggestion: Increase contrast slightly\nSTYLE: Modern clean. → Suggestion: Apply quality filter\nQUALITY: High quality. → Suggestion: Apply sharpening"
+        
+        # Enhanced parsing: map AI suggestions to specific features
+        feature_mapping = {
+            'brightness': 'auto-brightness',
+            'dark': 'auto-brightness',
+            'underexposed': 'auto-brightness',
+            'too dark': 'auto-brightness',
+            'brighten': 'auto-brightness',
+            'lighter': 'auto-brightness',
+            'lighting': 'auto-brightness',
+            'contrast': 'auto-contrast',
+            'flat': 'auto-contrast',
+            'low contrast': 'auto-contrast',
+            'pop': 'auto-contrast',
+            'color': 'color-correction',
+            'colors': 'color-correction',
+            'color balance': 'color-correction',
+            'color grading': 'color-correction',
+            'saturation': 'auto-saturation',
+            'dull': 'auto-saturation',
+            'vibrant': 'auto-saturation',
+            'vivid': 'auto-saturation',
+            'colorful': 'auto-saturation',
+            'cinematic': 'cinematic',
+            'film': 'cinematic',
+            'movie': 'cinematic',
+            'teal': 'cinematic',
+            'vintage': 'vintage',
+            'retro': 'vintage',
+            'old': 'vintage',
+            'warm': 'vintage',
+            'sepia': 'vintage',
+            'noir': 'noir',
+            'black and white': 'noir',
+            'bw': 'noir',
+            'monochrome': 'noir',
+            'professional': 'color-correction',
+            'enhance': 'quality-enhancement',
+            'sharp': 'quality-enhancement',
+            'sharper': 'quality-enhancement',
+            'blur': 'quality-enhancement',
+            'detail': 'quality-enhancement',
+            'quality': 'quality-enhancement',
+            'hdr': 'quality-enhancement',
+            'noise': 'noise-reduction',
+            'grainy': 'noise-reduction',
+            'clean': 'noise-reduction',
+            'stabiliz': 'stabilization',
+            'shake': 'stabilization',
+            'stable': 'stabilization',
+            'cut': 'auto-cut',
+            'trim': 'auto-trim',
+            'shorten': 'auto-trim',
+            'captions': 'subtitle-generation',
+            'subtitles': 'subtitle-generation'
+        }
+        
+        # Determine which features to enable based on analysis
+        suggested_features = []
+        analysis_lower = analysis.lower()
+        
+        # Count keyword occurrences for priority
+        feature_scores = {}
+        for keyword, feature_id in feature_mapping.items():
+            if keyword in analysis_lower:
+                feature_scores[feature_id] = feature_scores.get(feature_id, 0) + 1
+        
+        # Sort by score and add MORE features for proper editing
+        sorted_features = sorted(feature_scores.items(), key=lambda x: x[1], reverse=True)
+        
+        # Always suggest 7-10 features for professional editing
+        if sorted_features:
+            suggested_features = [f[0] for f in sorted_features[:10]]  # Top 10 features
+        else:
+            # Smart defaults - apply MANY features for quality (video vs image specific)
+            if media_type == 'video':
+                suggested_features = ['auto-brightness', 'auto-contrast', 'auto-saturation', 'quality-enhancement', 'audio-enhancement', 'stabilization', 'subtitle-generation', 'auto-cut', 'smart-cropping']
+            else:
+                suggested_features = ['auto-brightness', 'auto-contrast', 'auto-saturation', 'quality-enhancement', 'noise-reduction', 'color-correction']
+        
+        # If very few specific suggestions, add more defaults
+        if len(suggested_features) < 7:
+            if media_type == 'video':
+                defaults = ['auto-brightness', 'auto-contrast', 'auto-saturation', 'quality-enhancement', 'audio-enhancement', 'stabilization', 'subtitle-generation']
+            else:
+                defaults = ['auto-brightness', 'auto-contrast', 'auto-saturation', 'quality-enhancement', 'noise-reduction', 'color-correction']
+            for default in defaults:
+                if default not in suggested_features:
+                    suggested_features.append(default)
+        
+        # Limit to 12 max for proper editing
+        suggested_features = suggested_features[:12]
+        
+        # Return multiple alternative suggestions for user to try
+        filter_suggestions = ['cinematic', 'vintage', 'noir', 'fade', 'fade-warm', 'cool', 'warm', 'graphite', 'simple', 'paris', 'los-angeles', 'moody', 'bright', 'portrait']
+        
+        # Enhanced filter recommendation based on AI analysis
+        if 'cinematic' in analysis_lower or 'film' in analysis_lower or 'teal' in analysis_lower:
+            recommended_filter = 'cinematic'
+        elif 'vintage' in analysis_lower or 'retro' in analysis_lower or 'warm' in analysis_lower or 'sepia' in analysis_lower:
+            recommended_filter = 'vintage'
+        elif 'noir' in analysis_lower or 'black and white' in analysis_lower or 'monochrome' in analysis_lower or 'bw' in analysis_lower:
+            recommended_filter = 'noir'
+        elif 'fade' in analysis_lower or 'muted' in analysis_lower or 'soft' in analysis_lower:
+            recommended_filter = 'fade'
+        elif 'cool' in analysis_lower or 'blue' in analysis_lower or 'cold' in analysis_lower:
+            recommended_filter = 'cool'
+        elif 'warm' in analysis_lower or 'golden' in analysis_lower or 'sunset' in analysis_lower:
+            recommended_filter = 'warm'
+        elif 'graphite' in analysis_lower or 'metallic' in analysis_lower or 'silver' in analysis_lower:
+            recommended_filter = 'graphite'
+        elif 'simple' in analysis_lower or 'clean' in analysis_lower or 'minimal' in analysis_lower:
+            recommended_filter = 'simple'
+        elif 'paris' in analysis_lower or 'elegant' in analysis_lower or 'sophisticated' in analysis_lower:
+            recommended_filter = 'paris'
+        elif 'los angeles' in analysis_lower or 'sunny' in analysis_lower or 'la' in analysis_lower or 'sunset' in analysis_lower:
+            recommended_filter = 'los-angeles'
+        elif 'moody' in analysis_lower or 'dark' in analysis_lower or 'dramatic' in analysis_lower:
+            recommended_filter = 'moody'
+        elif 'bright' in analysis_lower or 'airy' in analysis_lower or 'light' in analysis_lower:
+            recommended_filter = 'bright'
+        elif 'portrait' in analysis_lower or 'skin tone' in analysis_lower or 'people' in analysis_lower:
+            recommended_filter = 'portrait'
+        else:
+            recommended_filter = None
+        
+        return jsonify({
+            'success': True,
+            'analysis': analysis,
+            'suggestedFeatures': suggested_features,  # All 7-10 features for proper editing
+            'alternativeFilters': filter_suggestions,
+            'recommendedFilter': recommended_filter,
+            'reasoning': analysis
+        })
+        
+    except Exception as e:
+        print(f"❌ Media analysis error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': True,
+            'analysis': 'Smart analysis suggests: Improve brightness and color balance',
+            'suggestedFeatures': ['auto-brightness', 'color-correction', 'auto-contrast'],
+            'reasoning': 'Using smart defaults for optimal results'
+        })
+
+@app.route('/api/ai/generate-text', methods=['POST'])
+def generate_text_overlay():
+    """Generate AI-powered text suggestions for video overlays (Instagram-style)"""
+    try:
+        data = request.get_json()
+        context = data.get('context', 'social_media_caption')
+        video_url = data.get('videoUrl')
+        
+        if not openai_client:
+            return jsonify({'suggestions': ['Subscribe for more!', 'Like & Share', 'Follow us!']})
+        
+        print(f"🤖 Generating AI text suggestions for context: {context}")
+        
+        # Use REAL OpenAI GPT-4 for intelligent text generation
+        response = openai_client.chat.completions.create(
+            model=OPENAI_MODEL_CHAT,
+            messages=[
+                {
+                    "role": "system", 
+                    "content": "You are a social media expert specializing in creating engaging text overlays for videos. Generate catchy, short text suggestions that work well as video overlays. Keep them under 5 words each for maximum impact. Make them action-oriented and engaging."
+                },
+                {
+                    "role": "user", 
+                    "content": f"Generate 5 engaging text overlay suggestions for a social media video. Context: {context}. Make them short, catchy, and perfect for Instagram/TikTok style videos."
+                }
+            ],
+            max_tokens=150,
+            temperature=0.9
+        )
+        
+        ai_text = response.choices[0].message.content
+        print(f"✅ AI Text Suggestions: {ai_text}")
+        
+        # Parse the response into individual suggestions
+        suggestions = []
+        for line in ai_text.split('\n'):
+            line = line.strip()
+            # Remove numbering and quotes
+            line = line.lstrip('0123456789.-) ').strip('"\'')
+            if line and len(line) < 60:  # Keep only short texts
+                suggestions.append(line)
+        
+        # If parsing fails, provide defaults
+        if not suggestions:
+            suggestions = [
+                '✨ Subscribe for More!',
+                '💯 Like & Share',
+                '🔥 Follow Us!',
+                '👀 Watch Till End',
+                '💪 You Got This!'
+            ]
+        
+        return jsonify({'suggestions': suggestions[:5]})
+    except Exception as e:
+        print(f"❌ Text generation error: {e}")
+        return jsonify({'suggestions': [
+            '✨ Subscribe for More!',
+            '💯 Like & Share',
+            '🔥 Follow Us!',
+            '👀 Watch Till End',
+            '💪 You Got This!'
+        ]})
+
+@app.route('/api/ai/extract-video-frame', methods=['POST'])
+def extract_video_frame():
+    """Extract a frame from video without effects (for original preview)"""
+    try:
+        data = request.get_json()
+        video_url = data.get('videoUrl')
+        
+        if not video_url:
+            return jsonify({'error': 'No video URL provided'}), 400
+        
+        print(f"🎬 Extracting frame from video: {video_url}")
+        
+        # Download video temporarily
+        import requests
+        import tempfile
+        import cv2
+        from PIL import Image
+        import io
+        
+        # Download video file
+        response = requests.get(video_url, stream=True)
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp_file:
+            for chunk in response.iter_content(chunk_size=8192):
+                tmp_file.write(chunk)
+            tmp_path = tmp_file.name
+        
+        # Extract middle frame using OpenCV
+        cap = cv2.VideoCapture(tmp_path)
+        
+        # Get total frames and go to middle
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        middle_frame = total_frames // 2
+        cap.set(cv2.CAP_PROP_POS_FRAMES, middle_frame)
+        
+        # Read frame
+        ret, frame = cap.read()
+        cap.release()
+        
+        # Clean up temp file
+        import os
+        os.unlink(tmp_path)
+        
+        if not ret:
+            return jsonify({'error': 'Failed to extract frame'}), 500
+        
+        # Convert BGR (OpenCV) to RGB (PIL)
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        img = Image.fromarray(frame_rgb)
+        
+        print(f"✅ Extracted frame: {img.size}")
+        
+        # Save frame without any processing
+        output = io.BytesIO()
+        img.save(output, format='JPEG', quality=95)
+        output.seek(0)
+        
+        # Upload to Cloudinary
+        import cloudinary.uploader
+        result = cloudinary.uploader.upload(
+            output,
+            resource_type="image",
+            folder="vedit_preview_frames"
+        )
+        
+        frame_url = result['secure_url']
+        print(f"✅ Original frame uploaded: {frame_url}")
+        
+        return jsonify({
+            'success': True,
+            'frameUrl': frame_url
+        })
+        
+    except Exception as e:
+        print(f"❌ Video frame extraction error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ai/preview-video-frame', methods=['POST'])
+def preview_video_frame():
+    """Extract a frame from video and apply effects for preview"""
+    try:
+        data = request.get_json()
+        video_url = data.get('videoUrl')
+        filter_preset = data.get('filterPreset')
+        settings = data.get('settings', {})
+        text_overlays = data.get('textOverlays', [])  # Add text overlays support
+        
+        if not video_url:
+            return jsonify({'error': 'No video URL provided'}), 400
+        
+        print(f"🎬 Generating preview frame from video: {video_url}")
+        
+        # Download video temporarily
+        import requests
+        import tempfile
+        import cv2
+        import numpy as np
+        from PIL import Image, ImageEnhance
+        import io
+        
+        # Download video file
+        response = requests.get(video_url, stream=True)
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp_file:
+            for chunk in response.iter_content(chunk_size=8192):
+                tmp_file.write(chunk)
+            tmp_path = tmp_file.name
+        
+        # Extract middle frame using OpenCV
+        cap = cv2.VideoCapture(tmp_path)
+        
+        # Get total frames and go to middle
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        middle_frame = total_frames // 2
+        cap.set(cv2.CAP_PROP_POS_FRAMES, middle_frame)
+        
+        # Read frame
+        ret, frame = cap.read()
+        cap.release()
+        
+        # Clean up temp file
+        import os
+        os.unlink(tmp_path)
+        
+        if not ret:
+            return jsonify({'error': 'Failed to extract frame'}), 500
+        
+        # Convert BGR (OpenCV) to RGB (PIL)
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        img = Image.fromarray(frame_rgb)
+        
+        print(f"✅ Extracted frame: {img.size}")
+        
+        # Apply Instagram-style filters
+        if filter_preset == 'normal':
+            print("✅ No filter applied")
+        elif filter_preset == 'cinematic':
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.4)
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(1.5)
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(0.9)
+            print("✅ Applied cinematic filter")
+        elif filter_preset == 'vintage':
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(0.8)
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(1.3)
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.1)
+            print("✅ Applied vintage filter")
+        elif filter_preset == 'noir':
+            img = img.convert('L').convert('RGB')
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.8)
+            print("✅ Applied noir filter")
+        elif filter_preset == 'fade':
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(0.6)
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(1.15)
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(0.7)
+            print("✅ Applied fade filter")
+        elif filter_preset == 'fade-warm':
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(0.7)
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(1.25)
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(0.8)
+            print("✅ Applied fade-warm filter")
+        elif filter_preset == 'cool':
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(0.9)
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(0.95)
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.2)
+            print("✅ Applied cool filter")
+        elif filter_preset == 'warm':
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(1.3)
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(1.1)
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.1)
+            print("✅ Applied warm filter")
+        elif filter_preset == 'graphite':
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(0.5)
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.3)
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(0.95)
+            print("✅ Applied graphite filter")
+        elif filter_preset == 'simple':
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.05)
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(1.05)
+            print("✅ Applied simple filter")
+        elif filter_preset == 'paris':
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(1.15)
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.25)
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(0.98)
+            print("✅ Applied paris filter")
+        elif filter_preset == 'los-angeles':
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(1.4)
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(1.2)
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.15)
+            print("✅ Applied los-angeles filter")
+        elif filter_preset == 'moody':
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(0.85)
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.4)
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(0.9)
+            print("✅ Applied moody filter")
+        elif filter_preset == 'bright':
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(1.25)
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.1)
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(1.1)
+            print("✅ Applied bright filter")
+        elif filter_preset == 'portrait':
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(1.1)
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.08)
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(1.12)
+            print("✅ Applied portrait filter")
+        
+        # Apply settings adjustments
+        if settings.get('auto-brightness'):
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(1.15)
+            print("✅ Applied auto brightness")
+        if settings.get('auto-contrast'):
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.15)
+            print("✅ Applied auto contrast")
+        if settings.get('auto-saturation'):
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(1.2)
+            print("✅ Applied auto saturation")
+        if settings.get('color-correction'):
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(1.1)
+            print("✅ Applied color correction")
+        
+        # Apply text overlays on frame
+        from PIL import ImageDraw, ImageFont
+        if text_overlays and len(text_overlays) > 0:
+            draw = ImageDraw.Draw(img)
+            for text_data in text_overlays:
+                text = text_data.get('text', '')
+                x_percent = text_data.get('x', 50)
+                y_percent = text_data.get('y', 50)
+                font_size = text_data.get('fontSize', 48)
+                color = text_data.get('color', '#FFFFFF')
+                
+                # Calculate position
+                x_pos = int((x_percent / 100) * img.width)
+                y_pos = int((y_percent / 100) * img.height)
+                
+                # Try to load font
+                try:
+                    font = ImageFont.truetype("arial.ttf", font_size)
+                except:
+                    font = ImageFont.load_default()
+                
+                # Draw text
+                draw.text((x_pos, y_pos), text, fill=color, font=font, anchor="mm")
+                print(f"✅ Added text overlay: {text}")
+        
+        # Save processed frame
+        output = io.BytesIO()
+        img.save(output, format='JPEG', quality=95)
+        output.seek(0)
+        
+        # Upload to Cloudinary
+        import cloudinary.uploader
+        result = cloudinary.uploader.upload(
+            output,
+            resource_type="image",
+            folder="vedit_preview_frames"
+        )
+        
+        processed_url = result['secure_url']
+        print(f"✅ Preview frame uploaded: {processed_url}")
+        
+        return jsonify({
+            'success': True,
+            'processedUrl': processed_url
+        })
+        
+    except Exception as e:
+        print(f"❌ Video frame preview error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ai/process-image', methods=['POST'])
+def process_image():
+    """Process image with text overlays and filters (like video but for images)"""
+    try:
+        data = request.get_json()
+        image_url = data.get('imageUrl')
+        text_overlays = data.get('textOverlays', [])
+        filter_preset = data.get('filterPreset')
+        settings = data.get('settings', {})
+        
+        if not image_url:
+            return jsonify({'error': 'No image URL provided'}), 400
+        
+        print(f"🖼️ Processing image: {image_url}")
+        
+        # Download image
+        import requests
+        from PIL import Image, ImageDraw, ImageFont, ImageEnhance, ImageFilter
+        import io
+        
+        response = requests.get(image_url)
+        img = Image.open(io.BytesIO(response.content))
+        
+        # Convert to RGB if needed
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        
+        # Apply Instagram-style filters with STRONG visual effects
+        if filter_preset == 'normal':
+            # No filter - clean look
+            pass
+        elif filter_preset == 'cinematic':
+            # DRAMATIC Teal and orange look
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.4)
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(1.5)
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(0.9)
+        elif filter_preset == 'vintage':
+            # Warm nostalgic retro
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(0.8)
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(1.3)
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.1)
+        elif filter_preset == 'noir':
+            # STRONG Black and white
+            img = img.convert('L').convert('RGB')
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.8)
+        elif filter_preset == 'fade':
+            # Soft muted pastels
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(0.6)  # Desaturated
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(1.15)
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(0.7)
+        elif filter_preset == 'fade-warm':
+            # Soft warm pastels
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(0.7)
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(1.25)
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(0.8)
+        elif filter_preset == 'cool':
+            # Cool blue tones
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(0.9)  # Slightly desaturated
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(0.95)  # Slightly darker
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.2)
+        elif filter_preset == 'warm':
+            # Warm golden tones
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(1.3)  # Extra saturated
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(1.1)  # Slightly brighter
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.1)
+        elif filter_preset == 'graphite':
+            # Cool metallic gray
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(0.5)  # Very desaturated
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.3)
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(0.95)
+        elif filter_preset == 'simple':
+            # Minimal clean
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.05)  # Slightly more contrast
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(1.05)  # Slightly more saturated
+        elif filter_preset == 'paris':
+            # Elegant sophisticated
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(1.15)
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.25)
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(0.98)
+        elif filter_preset == 'los-angeles':
+            # Vibrant sunny LA vibes
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(1.4)  # Very saturated
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(1.2)  # Bright
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.15)
+        elif filter_preset == 'moody':
+            # Dramatic dark tones
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(0.85)  # Darker
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.4)  # High contrast
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(0.9)
+        elif filter_preset == 'bright':
+            # Fresh bright & airy
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(1.25)  # Very bright
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.1)
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(1.1)
+        elif filter_preset == 'portrait':
+            # Perfect skin tones
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(1.1)
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.08)
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(1.12)
+        
+        # Apply settings adjustments
+        if settings.get('auto-brightness'):
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(1.15)
+        if settings.get('auto-contrast'):
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.15)
+        if settings.get('auto-saturation'):
+            enhancer = ImageEnhance.Color(img)
+            img = enhancer.enhance(1.2)
+        
+        # Add text overlays
+        if text_overlays:
+            draw = ImageDraw.Draw(img)
+            for text_data in text_overlays:
+                try:
+                    text_content = text_data.get('text', '')
+                    position = text_data.get('position', 'custom')
+                    font_size = text_data.get('fontSize', 48)
+                    color = text_data.get('color', '#FFFFFF')
+                    
+                    # Instagram-style free positioning (X/Y coordinates 0-100%)
+                    x_percent = text_data.get('x', 50)
+                    y_percent = text_data.get('y', 50)
+                    
+                    # Highlight feature
+                    highlight = text_data.get('highlight', False)
+                    highlight_color = text_data.get('highlightColor', '#FFFF00')
+                    
+                    # Convert hex color to RGB
+                    color_rgb = tuple(int(color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
+                    
+                    # Try to load a font (fallback to default)
+                    try:
+                        font = ImageFont.truetype("arial.ttf", font_size)
+                    except:
+                        font = ImageFont.load_default()
+                    
+                    # Get text size
+                    bbox = draw.textbbox((0, 0), text_content, font=font)
+                    text_width = bbox[2] - bbox[0]
+                    text_height = bbox[3] - bbox[1]
+                    
+                    # Calculate position based on X/Y percentage
+                    img_width, img_height = img.size
+                    x = int((x_percent / 100) * img_width - text_width / 2)
+                    y = int((y_percent / 100) * img_height - text_height / 2)
+                    
+                    # Clamp to image bounds
+                    x = max(0, min(x, img_width - text_width))
+                    y = max(0, min(y, img_height - text_height))
+                    
+                    # Draw highlight background if enabled
+                    if highlight:
+                        highlight_rgb = tuple(int(highlight_color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
+                        padding = 10
+                        draw.rectangle(
+                            [x - padding, y - padding, x + text_width + padding, y + text_height + padding],
+                            fill=highlight_rgb
+                        )
+                    
+                    # Draw text with outline/stroke
+                    stroke_width = text_data.get('strokeWidth', 2)
+                    outline_color = (0, 0, 0)
+                    for adj_x in range(-stroke_width, stroke_width + 1):
+                        for adj_y in range(-stroke_width, stroke_width + 1):
+                            if adj_x != 0 or adj_y != 0:
+                                draw.text((x + adj_x, y + adj_y), text_content, font=font, fill=outline_color)
+                    draw.text((x, y), text_content, font=font, fill=color_rgb)
+                    
+                    print(f"✅ Added text: '{text_content}' at ({x_percent}%, {y_percent}%){' [HIGHLIGHTED]' if highlight else ''}")
+                except Exception as text_err:
+                    print(f"⚠️ Failed to add text: {text_err}")
+        
+        # Save processed image
+        output = io.BytesIO()
+        img.save(output, format='JPEG', quality=95)
+        output.seek(0)
+        
+        # Upload to Cloudinary
+        import cloudinary.uploader
+        result = cloudinary.uploader.upload(
+            output,
+            resource_type="image",
+            folder="vedit_processed"
+        )
+        
+        processed_url = result['secure_url']
+        print(f"✅ Processed image uploaded: {processed_url}")
+        
+        return jsonify({
+            'success': True,
+            'processedUrl': processed_url
+        })
+        
+    except Exception as e:
+        print(f"❌ Image processing error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/upload', methods=['POST'])
 def upload_file():

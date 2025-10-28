@@ -44,8 +44,8 @@
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/nita-05/Ai-video.git
-   cd Ai-video
+   git clone https://github.com/yourusername/vedit.git
+   cd vedit
    ```
 
 2. **Install Frontend Dependencies**
