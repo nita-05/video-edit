@@ -48,7 +48,7 @@ app = Flask(__name__)
 # CORS configuration - MUST be before any routes
 CORS(app, 
      resources={r"/api/*": {
-         "origins": ["http://localhost:3000", "http://127.0.0.1:3000", "https://vedit-app.vercel.app"],
+         "origins": ["http://localhost:3000", "http://127.0.0.1:3000", "https://vedit-app.vercel.app", "https://video-edit-nu.vercel.app"],
          "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
          "allow_headers": ["Content-Type", "Authorization"],
          "supports_credentials": True
@@ -2275,13 +2275,26 @@ def vport_connect_youtube():
 def vport_callback_youtube():
     """OAuth callback: exchange code for tokens without google client libs."""
     try:
+        # Check if this is a direct access (no OAuth parameters)
+        code = request.args.get('code')
+        error = request.args.get('error')
+        
+        # Handle OAuth errors from Google
+        if error:
+            return jsonify({'error': f'OAuth error: {error}', 'message': 'Authorization was denied or failed'}), 400
+        
+        # Check for missing code (direct access or incomplete OAuth flow)
+        if not code:
+            return jsonify({
+                'error': 'Missing authorization code',
+                'message': 'This endpoint is for OAuth callbacks only. Redirect URI must be accessed via Google OAuth flow.',
+                'help': 'Access /api/vport/connect/youtube to start the OAuth flow'
+            }), 400
+        
         cid = os.getenv('YOUTUBE_CLIENT_ID') or os.getenv('GOOGLE_CLIENT_ID')
         csec = os.getenv('YOUTUBE_CLIENT_SECRET') or os.getenv('GOOGLE_CLIENT_SECRET')
         if not cid or not csec:
             return jsonify({'error': 'Missing Google OAuth env vars.'}), 400
-        code = request.args.get('code')
-        if not code:
-            return jsonify({'error': 'Missing authorization code'}), 400
         redirect_uri = request.host_url.rstrip('/') + '/api/vport/callback/youtube'
         token_resp = requests.post('https://oauth2.googleapis.com/token', data={
             'code': code,
