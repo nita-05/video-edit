@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: vedit-backend
+    env: python
+    buildCommand: bash build.sh
+    startCommand: cd backend && python app.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.18
+      - key: FLASK_APP
+        value: app.py
+    healthCheckPath: /api/health
+
