@@ -4560,7 +4560,7 @@ function RealAIDashboard() {
                         backgroundColor: currentTextEdit.backgroundColor !== 'transparent' ? currentTextEdit.backgroundColor : undefined,
                         padding: currentTextEdit.backgroundColor !== 'transparent' ? '8px 16px' : undefined,
                         borderRadius: currentTextEdit.backgroundColor !== 'transparent' ? '8px' : undefined,
-                        textShadow: `${currentTextEdit.strokeWidth}px ${currentTextEdit.strokeWidth}px ${currentTextEdit.strokeWidth * 2}px ${currentTextEdit.strokeColor}`
+                        textShadow: currentTextEdit.strokeWidth ? `${currentTextEdit.strokeWidth}px ${currentTextEdit.strokeWidth}px ${currentTextEdit.strokeWidth * 2}px ${currentTextEdit.strokeColor}` : undefined
                       }}
                     >
                       {currentTextEdit.text}
