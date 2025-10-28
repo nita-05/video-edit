@@ -71,16 +71,20 @@ cloudinary.config(
 )
 
 # OpenAI configuration
-openai_key = os.getenv('OPENAI_API_KEY')
-if openai_key:
+# Try multiple ways to get the API key (for both local and Render deployment)
+openai_key = os.getenv('OPENAI_API_KEY') or os.environ.get('OPENAI_API_KEY')
+if openai_key and openai_key.strip():
     try:
-        openai_client = OpenAI(api_key=openai_key)
+        openai_client = OpenAI(api_key=openai_key.strip())
         print("✅ OpenAI client initialized successfully")
+        print(f"✅ OpenAI API key loaded (length: {len(openai_key)} characters)")
     except Exception as e:
         print(f"⚠️ Warning: OpenAI client initialization failed: {e}")
+        print(f"⚠️ Error type: {type(e).__name__}")
         openai_client = None
 else:
     print("❌ Warning: OPENAI_API_KEY not found in environment variables")
+    print(f"❌ Available env vars with 'OPENAI' in name: {[k for k in os.environ.keys() if 'OPENAI' in k.upper()]}")
     openai_client = None
 
 # Model defaults (override with env if needed)
@@ -1011,10 +1015,15 @@ def process_video_fast(video_path, settings, job_id, text_overlays=None, backgro
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
+    # Check OpenAI configuration status
+    has_key = bool(os.getenv('OPENAI_API_KEY') or os.environ.get('OPENAI_API_KEY'))
+    client_ready = openai_client is not None
     return jsonify({
         'status': 'healthy',
         'message': 'VEDIT Production Fast Backend with Real AI is running',
-        'openai_configured': openai_client is not None,
+        'openai_configured': client_ready,
+        'openai_key_present': has_key,
+        'openai_client_initialized': client_ready,
         'features_available': 35,
         'timestamp': time.time()
     })
