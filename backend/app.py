@@ -70,8 +70,12 @@ cloudinary.config(
 # OpenAI configuration
 openai_key = os.getenv('OPENAI_API_KEY')
 if openai_key:
-    openai_client = OpenAI(api_key=openai_key)
-    print("✅ OpenAI client initialized successfully")
+    try:
+        openai_client = OpenAI(api_key=openai_key)
+        print("✅ OpenAI client initialized successfully")
+    except Exception as e:
+        print(f"⚠️ Warning: OpenAI client initialization failed: {e}")
+        openai_client = None
 else:
     print("❌ Warning: OPENAI_API_KEY not found in environment variables")
     openai_client = None
